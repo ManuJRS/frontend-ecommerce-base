@@ -18,6 +18,9 @@ export const StoreViewService = {
               },
               'blocks.dynamic-hero': {
                 populate: '*'
+              },
+              'config.sort-by': {
+                populate: '*'
               }
             }
           }

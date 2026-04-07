@@ -7,6 +7,7 @@ const storeViewStore = useStoreViewStore();
 const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'blocks.dynamic-hero': defineAsyncComponent(() => import('../components/DynamicHero.vue')),
   'blocks.product-grid': defineAsyncComponent(() => import('../components/ProductGrid.vue')),
+  'config.sort-by': defineAsyncComponent(() => import('../components/ConfigSortBy.vue')),
 };
 
 const resolveComponent = (componentName: string) => {

@@ -27,11 +27,40 @@ export const useStoreViewStore = defineStore('storeView', () => {
     }
   }
 
+  function sortProducts(sortBy: string) {
+    if (!currentPage.value) return;
+
+    // Buscar el bloque de la cuadrícula de productos en la página actual
+    const productGridBlock = currentPage.value.contentBlocks.find(
+      (block) => block.__component === 'blocks.product-grid'
+    );
+
+    if (productGridBlock && productGridBlock.manualProducts) {
+      if (sortBy === 'lowest') {
+        productGridBlock.manualProducts.sort((a: any, b: any) => (a.price || 0) - (b.price || 0));
+      } else if (sortBy === 'highest') {
+        productGridBlock.manualProducts.sort((a: any, b: any) => (b.price || 0) - (a.price || 0));
+      } else if (sortBy === 'newest') {
+        productGridBlock.manualProducts.sort((a: any, b: any) => (b.id || 0) - (a.id || 0));
+      } else if (sortBy === 'best-sellers') {
+         productGridBlock.manualProducts.sort((a: any, b: any) => {
+             const valA = a.isBestseller ? 1 : a.bestseller ? 1 : 0;
+             const valB = b.isBestseller ? 1 : b.bestseller ? 1 : 0;
+             return valB - valA;
+         });
+      } else if (sortBy === 'default') {
+         // Proxy simple de estado original (ID ascendente)
+         productGridBlock.manualProducts.sort((a: any, b: any) => (a.id || 0) - (b.id || 0));
+      }
+    }
+  }
+
   return {
     currentPage,
     loading,
     error,
     fetchPage,
+    sortProducts,
   };
 }, {
   persist: true,
