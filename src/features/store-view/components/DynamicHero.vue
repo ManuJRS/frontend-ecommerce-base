@@ -7,8 +7,8 @@ defineProps<{
 </script>
 
 <template>
-  <section class="bg-gray-100 py-12 px-4 shadow-sm my-4 rounded-xl text-center">
-    <h1 class="text-4xl font-bold mb-4 text-gray-800">{{ block.title || 'Default Hero Title' }}</h1>
-    <p class="text-lg text-gray-600 max-w-2xl mx-auto">{{ block.subtitle || 'Supporting subtitle goes here.' }}</p>
-  </section>
+  <div class="flex-1 md:px-12 px-4 py-8 bg-new-surface-bg">
+    <h1 class="text-4xl md:text-5xl font-black tracking-tighter mb-4">{{ block.title || 'Default Hero Title' }}</h1>
+    <p class="max-w-xl text-on-surface-variant text-sm leading-relaxed">{{ block.description || 'Supporting subtitle goes here.' }}</p>
+  </div>
 </template>
