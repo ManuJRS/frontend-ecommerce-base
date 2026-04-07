@@ -1,23 +1,93 @@
 <script setup lang="ts">
+import { ref, onMounted, watch } from 'vue';
+import { api } from '@/core/api';
+import qs from 'qs';
 import type { StoreViewBlock } from '../models';
+import { useStoreViewStore } from '../stores/storeView.store';
 
-defineProps<{
-  block: StoreViewBlock; // Ojo: Asegúrate de que tu interface incluya manualProducts?: any[]
+const props = defineProps<{
+  block: StoreViewBlock;
 }>();
+
+const displayProducts = ref<any[]>([]);
+const isLoadingProducts = ref(false);
+const store = useStoreViewStore();
+
+watch(() => store.currentSortBy, (sortBy) => {
+  if (sortBy === 'lowest') {
+    displayProducts.value.sort((a: any, b: any) => (a.price || 0) - (b.price || 0));
+  } else if (sortBy === 'highest') {
+    displayProducts.value.sort((a: any, b: any) => (b.price || 0) - (a.price || 0));
+  } else if (sortBy === 'newest') {
+    displayProducts.value.sort((a: any, b: any) => (b.id || 0) - (a.id || 0));
+  } else if (sortBy === 'best-sellers') {
+     displayProducts.value.sort((a: any, b: any) => {
+         const valA = a.isBestseller || a.bestseller || a.bestProduct ? 1 : 0;
+         const valB = b.isBestseller || b.bestseller || b.bestProduct ? 1 : 0;
+         return valB - valA;
+     });
+  } else if (sortBy === 'default') {
+     displayProducts.value.sort((a: any, b: any) => (a.id || 0) - (b.id || 0));
+  }
+});
+
+onMounted(async () => {
+  if (props.block.dataSource === 'manual_selection') {
+    displayProducts.value = props.block.manualProducts || [];
+    return;
+  }
+
+  if (props.block.dataSource === 'by_category') {
+    if (props.block.category && props.block.category.products) {
+      const limit = props.block.itemsLimit || 12;
+      displayProducts.value = props.block.category.products.slice(0, limit);
+    } else {
+      console.warn('La categoría no tiene productos asignados.');
+      displayProducts.value = [];
+    }
+    return;
+  }
+
+  if (props.block.dataSource === 'all_products') {
+    isLoadingProducts.value = true;
+    try {
+      const queryObj: any = {
+        populate: ['images', 'categories'], 
+        pagination: {
+          limit: props.block.itemsLimit || 12,
+        },
+        sort: ['createdAt:desc'],
+      };
+
+      const query = qs.stringify(queryObj, { encodeValuesOnly: true });
+      const response = await api.get(`/products?${query}`);
+      displayProducts.value = response.data.data;
+    } catch (error) {
+      console.error('Error obteniendo todos los productos:', error);
+    } finally {
+      isLoadingProducts.value = false;
+    }
+  }
+});
 </script>
 
 <template>
   <section class="py-8 bg-new-surface-bg px-4 md:px-8">
     <div class="flex justify-between items-end mb-12">
       <h3 class="text-xs font-bold uppercase tracking-[0.3em] text-on-surface-variant">{{ block.title || 'The Collection' }}</h3>
-      <p class="text-xs text-on-surface-variant">Mostrando {{ block.manualProducts?.length || 0 }} productos</p>
+      <p v-if="block.showItemsQuantity" class="text-xs text-on-surface-variant">Mostrando {{ displayProducts.length }} productos</p>
     </div>
     
-    <div v-if="block.manualProducts && block.manualProducts.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-16 gap-x-8">
+    <div v-if="isLoadingProducts" class="flex justify-center py-20">
+      <p class="text-xs font-bold uppercase tracking-widest text-on-surface-variant animate-pulse">
+        Loading Collection...
+      </p>
+    </div>
+
+    <div v-else-if="displayProducts.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-16 gap-x-8">
       
-      <!-- Product Card Dinámica -->
       <div 
-        v-for="product in block.manualProducts" 
+        v-for="product in displayProducts" 
         :key="product.id" 
         class="group cursor-pointer"
       >
@@ -32,36 +102,42 @@ defineProps<{
             Sin Imagen
           </div>
 
-          <!-- Bestseller Badge Dinámico -->
+          <div class="flex flex-col gap-2 absolute bottom-4 right-4 items-end">
+          <div
+            v-if="product.newProduct"
+            class="flex items-center gap-1.5 bg-white/90 backdrop-blur-sm px-2 py-1 shadow-sm opacity-100 group-hover:opacity-0 transition-opacity duration-300"
+          >
+            <span class="material-symbols-outlined text-[10px] text-primary">new_releases</span>
+            <span class="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">New Arrival</span>
+          </div>
+
           <div 
-            v-if="product.isBestseller"
-            class="absolute bottom-4 right-4 flex items-center gap-1.5 bg-white/90 backdrop-blur-sm px-2 py-1 shadow-sm opacity-100 group-hover:opacity-0 transition-opacity duration-300"
+            v-if="product.bestProduct"
+            class="flex items-center gap-1.5 bg-white/90 backdrop-blur-sm px-2 py-1 shadow-sm opacity-100 group-hover:opacity-0 transition-opacity duration-300"
           >
             <span class="material-symbols-outlined text-[10px] text-primary">star</span>
             <span class="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">Bestseller</span>
           </div>
+          </div>
 
-          <!-- Botón Add to Cart -->
+
           <button class="absolute bottom-4 left-4 right-4 bg-primary text-on-primary py-4 text-[10px] font-bold uppercase tracking-[0.2em] translate-y-12 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
             Add to Cart
           </button>
-
-          <!-- Badges Superiores (Sale, Save Amount)-->
-          <div v-if="product.saveAmount" class="absolute top-4 left-4 flex flex-col gap-1">
-            <div class="bg-white px-2 py-1 flex flex-col items-start leading-none">
-                <span class="text-[10px] font-bold uppercase tracking-widest text-primary">Save ${{ product.saveAmount }}</span>
-                <span class="text-[8px] font-medium uppercase tracking-[0.2em] text-on-surface-variant">OFF</span>
-            </div>
-            <div v-if="product.discountPercentage" class="bg-primary text-on-primary px-2 py-1 text-[10px] font-black tracking-tighter">
-                -{{ product.discountPercentage }}%
-            </div>
+          <div v-if="block.showDiscountBadge">
+                    <div v-if="product.discountPercentage && product.discountPercentage > 0" 
+                      class="absolute top-4 left-4 flex flex-col gap-1">
+                      <div v-if="block.badgeFormat === 'amount'" class="bg-white px-2 py-1 flex flex-col items-start leading-none">
+                          <span class="text-[10px] font-bold uppercase tracking-widest text-primary">
+                            Ahorra ${{ (product.price - (product.discountedPrice || (product.price - (product.price * (product.discountPercentage / 100))))).toFixed(0) }}
+                          </span>
+                      </div>
+                      <div v-if="block.badgeFormat === 'percentage'" class="bg-primary text-on-primary px-2 py-1 text-[10px] font-black tracking-tighter">
+                          -{{ product.discountPercentage }}%
+                      </div>
+                    </div>
           </div>
-          <span v-else-if="product.isOnSale" class="absolute top-4 left-4 bg-tertiary-container text-on-tertiary-container px-2 py-1 text-[9px] font-bold uppercase tracking-widest">
-            Sale
-          </span>
-
-          <!-- Botón de Favorito -->
-          <button class="absolute top-4 right-4 backdrop-blur-sm transition-all duration-300 group/fav">
+          <button v-if="block.showFavIcon" class="absolute top-4 right-4 backdrop-blur-sm transition-all duration-300 group/fav">
             <span class="material-symbols-outlined text-sm text-primary hover:text-red-500/80 hover:cursor-pointer group-hover/fav:scale-110 transition-transform" style="font-variation-settings: 'FILL' 0;">favorite</span>
           </button>
         </div>
@@ -70,16 +146,20 @@ defineProps<{
           <div class="flex justify-between items-start">
             <h4 class="text-sm font-bold tracking-tight">{{ product.name }}</h4>
             <div class="flex gap-2">
-                <span :class="{'text-sm font-medium': true, 'text-on-tertiary-container': product.isOnSale}">
-                  ${{ product.price }}
+                <span :class="{'text-sm font-medium': true, 'text-on-tertiary-container': product.discountPercentage > 0}">
+                  ${{ product.discountedPrice ? product.discountedPrice.toFixed(2) : product.price.toFixed(2) }}
                 </span>
-                <span v-if="product.originalPrice" class="text-xs line-through text-on-surface-variant">${{ product.originalPrice }}</span>
+                <span v-if="product.discountPercentage > 0" class="text-xs line-through text-on-surface-variant">
+                  ${{ product.price.toFixed(2) }}
+                </span>
             </div>
           </div>
-          <p class="text-xs text-on-surface-variant">{{ product.category?.name || 'Varios' }}</p>
+          <p v-if="block.showCategory" class="text-xs text-on-surface-variant">
+            {{ product.categories && product.categories.length > 0 ? product.categories[0].name : 'Uncategorized' }}
+          </p>
+          <p v-if="block.showDescription" class="text-xs text-on-surface-variant">{{ product.description || 'No description added' }}</p>
           
-          <!-- Rating Estrellas Simulado -->
-          <div class="flex gap-0.5 pt-2">
+          <div v-if="block.showCalification" class="flex gap-0.5 pt-2">
             <span class="material-symbols-outlined text-[10px]" style="font-variation-settings: 'FILL' 1;">star</span>
             <span class="material-symbols-outlined text-[10px]" style="font-variation-settings: 'FILL' 1;">star</span>
             <span class="material-symbols-outlined text-[10px]" style="font-variation-settings: 'FILL' 1;">star</span>
@@ -90,12 +170,10 @@ defineProps<{
       </div>
     </div>
 
-    <!-- Empty State -->
-    <div v-if="!block.manualProducts || block.manualProducts.length === 0" class="text-center py-20 text-gray-500">
+    <div v-else class="text-center py-20 text-gray-500 font-bold text-sm tracking-widest uppercase">
       No hay productos asignados a esta colección.
     </div>
 
-    <!-- Cargar Más -->
     <div class="mt-24 flex justify-center w-full">
       <button class="border border-outline-variant px-12 py-4 text-xs font-bold uppercase tracking-[0.3em] hover:bg-primary hover:text-on-primary hover:border-primary transition-all duration-300 text-on-surface-variant">
         Load More Pieces
