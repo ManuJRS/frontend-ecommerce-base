@@ -27,7 +27,10 @@ export const useStoreViewStore = defineStore('storeView', () => {
     }
   }
 
+  const currentSortBy = ref('default');
+
   function sortProducts(sortBy: string) {
+    currentSortBy.value = sortBy;
     if (!currentPage.value) return;
 
     // Buscar el bloque de la cuadrícula de productos en la página actual
@@ -44,12 +47,11 @@ export const useStoreViewStore = defineStore('storeView', () => {
         productGridBlock.manualProducts.sort((a: any, b: any) => (b.id || 0) - (a.id || 0));
       } else if (sortBy === 'best-sellers') {
          productGridBlock.manualProducts.sort((a: any, b: any) => {
-             const valA = a.isBestseller ? 1 : a.bestseller ? 1 : 0;
-             const valB = b.isBestseller ? 1 : b.bestseller ? 1 : 0;
+             const valA = a.isBestseller || a.bestseller || a.bestProduct ? 1 : 0;
+             const valB = b.isBestseller || b.bestseller || b.bestProduct ? 1 : 0;
              return valB - valA;
          });
       } else if (sortBy === 'default') {
-         // Proxy simple de estado original (ID ascendente)
          productGridBlock.manualProducts.sort((a: any, b: any) => (a.id || 0) - (b.id || 0));
       }
     }
@@ -59,6 +61,7 @@ export const useStoreViewStore = defineStore('storeView', () => {
     currentPage,
     loading,
     error,
+    currentSortBy,
     fetchPage,
     sortProducts,
   };
