@@ -37,11 +37,11 @@ const handleSortChange = () => {
         @change="handleSortChange"
         class="bg-transparent border-none text-[11px] font-bold uppercase tracking-widest focus:ring-0 cursor-pointer !pr-8 outline-none"
       >
-        <option value="default">Default</option>
-        <option v-if="block.showNewest" value="newest">Newest Arrivals</option>
-        <option v-if="block.showLowestPrice" value="lowest">Price: Low to High</option>
-        <option v-if="block.showHighestPrice" value="highest">Price: High to Low</option>
-        <option v-if="block.showBestSellers" value="best-sellers">Most Popular</option>
+        <option value="default">Todos</option>
+        <option v-if="block.showNewest" value="newest">Más recientes</option>
+        <option v-if="block.showLowestPrice" value="lowest">Precio: Bajo a Alto</option>
+        <option v-if="block.showHighestPrice" value="highest">Precio: Alto a Bajo</option>
+        <option v-if="block.showBestSellers" value="best-sellers">Más populares</option>
       </select>
     </div>
   </div>

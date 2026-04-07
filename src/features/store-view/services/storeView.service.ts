@@ -12,7 +12,14 @@ export const StoreViewService = {
               'blocks.product-grid': {
                 populate: {
                   manualProducts: {
-                    populate: ['images']
+                    populate: ['images', 'categories']
+                  },
+                  category: {
+                    populate: {
+                      products: {
+                        populate: ['images', 'categories']
+                      }
+                    }
                   }
                 }
               },
