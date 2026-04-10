@@ -28,6 +28,11 @@ export const StoreViewService = {
               },
               'config.sort-by': {
                 populate: '*'
+              },
+              'config.store-filters': {
+                populate: {
+                  categories_selection: true
+                }
               }
             }
           }
@@ -39,7 +44,6 @@ export const StoreViewService = {
     try {
       const response = await api.get(`/store-view?${query}`);
       const data = response.data.data;
-      console.log('DATA CRUDA DE STRAPI:', data);
 
       if (!data) return null;
 

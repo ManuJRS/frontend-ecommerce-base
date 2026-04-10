@@ -1,49 +1,87 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { api } from '@/core/api';
 import qs from 'qs';
 import type { StoreViewBlock } from '../models';
 import { useStoreViewStore } from '../stores/storeView.store';
+import type { AppliedProductFilters } from '../stores/storeView.store';
 
 const props = defineProps<{
   block: StoreViewBlock;
 }>();
 
-const displayProducts = ref<any[]>([]);
+const rawProducts = ref<any[]>([]);
 const isLoadingProducts = ref(false);
 const store = useStoreViewStore();
 
-watch(() => store.currentSortBy, (sortBy) => {
-  if (sortBy === 'lowest') {
-    displayProducts.value.sort((a: any, b: any) => (a.price || 0) - (b.price || 0));
-  } else if (sortBy === 'highest') {
-    displayProducts.value.sort((a: any, b: any) => (b.price || 0) - (a.price || 0));
-  } else if (sortBy === 'newest') {
-    displayProducts.value.sort((a: any, b: any) => (b.id || 0) - (a.id || 0));
-  } else if (sortBy === 'best-sellers') {
-     displayProducts.value.sort((a: any, b: any) => {
-         const valA = a.isBestseller || a.bestseller || a.bestProduct ? 1 : 0;
-         const valB = b.isBestseller || b.bestseller || b.bestProduct ? 1 : 0;
-         return valB - valA;
-     });
-  } else if (sortBy === 'default') {
-     displayProducts.value.sort((a: any, b: any) => (a.id || 0) - (b.id || 0));
+function effectivePrice(p: any): number {
+  const d = p.discountedPrice;
+  if (d != null && d !== '' && !Number.isNaN(Number(d))) return Number(d);
+  const pr = p.price;
+  return pr != null && pr !== '' ? Number(pr) || 0 : 0;
+}
+
+function productMatchesFilters(p: any, f: AppliedProductFilters): boolean {
+  if (f.priceRange) {
+    const price = effectivePrice(p);
+    if (price < f.priceRange.min || price > f.priceRange.max) return false;
   }
+
+  if (f.categoryIds.length > 0) {
+    const ids = (p.categories || []).map((c: { id: number }) => c.id);
+    if (!f.categoryIds.some((cid) => ids.includes(cid))) return false;
+  }
+
+  if (f.availabilityOnly) {
+    if (p.inStock === false) return false;
+    if (typeof p.stock === 'number' && p.stock <= 0) return false;
+  }
+
+  return true;
+}
+
+function sortList(list: any[], sortBy: string): any[] {
+  const sorted = [...list];
+  if (sortBy === 'lowest') {
+    sorted.sort((a, b) => effectivePrice(a) - effectivePrice(b));
+  } else if (sortBy === 'highest') {
+    sorted.sort((a, b) => effectivePrice(b) - effectivePrice(a));
+  } else if (sortBy === 'newest') {
+    sorted.sort((a, b) => (b.id || 0) - (a.id || 0));
+  } else if (sortBy === 'best-sellers') {
+    sorted.sort((a, b) => {
+      const valA = a.isBestseller || a.bestseller || a.bestProduct ? 1 : 0;
+      const valB = b.isBestseller || b.bestseller || b.bestProduct ? 1 : 0;
+      return valB - valA;
+    });
+  } else {
+    sorted.sort((a, b) => (a.id || 0) - (b.id || 0));
+  }
+  return sorted;
+}
+
+const displayProducts = computed(() => {
+  const f = store.appliedProductFilters;
+  let list = rawProducts.value;
+  if (f) {
+    list = list.filter((p) => productMatchesFilters(p, f));
+  }
+  return sortList(list, store.currentSortBy);
 });
 
 onMounted(async () => {
   if (props.block.dataSource === 'manual_selection') {
-    displayProducts.value = props.block.manualProducts || [];
+    rawProducts.value = [...(props.block.manualProducts || [])];
     return;
   }
 
   if (props.block.dataSource === 'by_category') {
     if (props.block.category && props.block.category.products) {
       const limit = props.block.itemsLimit || 12;
-      displayProducts.value = props.block.category.products.slice(0, limit);
+      rawProducts.value = props.block.category.products.slice(0, limit);
     } else {
       console.warn('La categoría no tiene productos asignados.');
-      displayProducts.value = [];
+      rawProducts.value = [];
     }
     return;
   }
@@ -52,7 +90,7 @@ onMounted(async () => {
     isLoadingProducts.value = true;
     try {
       const queryObj: any = {
-        populate: ['images', 'categories'], 
+        populate: ['images', 'categories'],
         pagination: {
           limit: props.block.itemsLimit || 12,
         },
@@ -61,7 +99,7 @@ onMounted(async () => {
 
       const query = qs.stringify(queryObj, { encodeValuesOnly: true });
       const response = await api.get(`/products?${query}`);
-      displayProducts.value = response.data.data;
+      rawProducts.value = response.data.data || [];
     } catch (error) {
       console.error('Error obteniendo todos los productos:', error);
     } finally {
