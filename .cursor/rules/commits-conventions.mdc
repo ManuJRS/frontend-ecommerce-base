@@ -1,0 +1,59 @@
+---
+alwaysApply: true
+---
+
+---
+description: Rules for generating and validating Git commit messages following Conventional Commits standards.
+globs: 
+---
+
+# Commit Message Conventions
+
+You are an expert developer who writes clean, professional, and descriptive commit messages. You must follow the **Conventional Commits 1.0.0** specification.
+
+## Core Rules
+
+* **Language:** Always use **English**.
+* **Format:** `<type>(<scope>): <description>`
+* **Case:** The description must be in **lowercase** and should not end with a period.
+* **Tense:** Use the **imperative mood** (e.g., "add" instead of "added" or "adds").
+* **Clarity:** Be concise but descriptive. Avoid vague messages like "fix bug" or "update code".
+
+## Commit Types
+
+| Type | Use Case |
+| :--- | :--- |
+| `feat` | A new feature for the user. |
+| `fix` | A bug fix for the user. |
+| `docs` | Changes to the documentation. |
+| `style` | Formatting, missing semi colons, etc; no production code change. |
+| `refactor` | Refactoring production code, eg. renaming a variable. |
+| `perf` | Code change that improves performance. |
+| `test` | Adding missing tests or correcting existing tests. |
+| `chore` | Updating grunt tasks etc; no production code change. |
+| `build` | Changes that affect the build system or external dependencies. |
+| `ci` | Changes to CI configuration files and scripts. |
+
+## Structural Rules
+
+1.  **Scope (Optional):** A scope may be provided to a commit’s type, to provide additional contextual information and is contained within parenthesis, e.g., `feat(auth): add google login`.
+2.  **Breaking Changes:** Must be indicated by an `!` after the type/scope or by adding `BREAKING CHANGE:` in the footer.
+    * Example: `feat(api)!: send cookie with object`
+3.  **Body (Optional):** Use if the commit requires more context. Separate from the subject with a blank line.
+4.  **Footer (Optional):** Use for referencing PRs, issues (e.g., `Refs #123`), or breaking changes.
+
+## Examples
+
+* **Good:** `feat(ui): add dark mode toggle`
+* **Good:** `fix(logic): resolve calculation error in checkout`
+* **Good:** `docs: update readme with installation steps`
+* **Bad:** `fixed the login button` (Not imperative, no type)
+* **Bad:** `FEAT: ADD STYLES.` (Uppercase, ends with period)
+
+## Instructions for AI
+
+Whenever you are asked to "commit the changes" or "generate a commit message":
+1. Analyze the staged changes.
+2. Determine the appropriate `type` and `scope`.
+3. Write a concise `description` in English and imperative mood.
+4. If the changes are massive, suggest breaking them into smaller commits.
