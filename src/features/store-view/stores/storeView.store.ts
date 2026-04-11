@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
+import router from '@/core/router';
 import type { StoreViewPageData } from '../models';
 import { StoreViewService } from '../services/storeView.service';
 
@@ -25,6 +26,17 @@ export const useStoreViewStore = defineStore('storeView', () => {
       if (pageData) {
         currentPage.value = pageData;
         appliedProductFilters.value = null;
+        if (pageData.slug) {
+          const param = router.currentRoute.value.params.slug;
+          const currentSlug =
+            typeof param === 'string' ? param : Array.isArray(param) ? param[0] : undefined;
+          if (currentSlug !== pageData.slug) {
+            await router.replace({
+              name: 'DynamicStoreView',
+              params: { slug: pageData.slug },
+            });
+          }
+        }
       } else {
         error.value = 'Page not found';
         currentPage.value = null;
