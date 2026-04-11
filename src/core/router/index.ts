@@ -1,12 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw } from 'vue-router';
-// We'll import StoreViewPage from features dynamically or directly
+
+const HomePage = () => import('@/features/home/views/HomePage.vue');
 const StoreViewPage = () => import('@/features/store-view/views/StoreViewPage.vue');
 
 const routes: Array<RouteRecordRaw> = [
   {
-    // The main catch-all for dynamic pages coming from Strapi
-    path: '/:pathMatch(.*)*',
+    path: '/',
+    name: 'Home',
+    component: HomePage,
+  },
+  {
+    /** Slug canónico de la tienda (p. ej. `tiendas-1`), alineado con `StoreViewPageData.slug` */
+    path: '/:slug',
     name: 'DynamicStoreView',
     component: StoreViewPage,
   },
