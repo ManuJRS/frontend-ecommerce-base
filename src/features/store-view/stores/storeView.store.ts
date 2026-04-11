@@ -3,11 +3,8 @@ import { ref } from 'vue';
 import type { StoreViewPageData } from '../models';
 import { StoreViewService } from '../services/storeView.service';
 
-/** Filtros aplicados desde `StoreViewFilters` al pulsar «Filtrar». */
 export interface AppliedProductFilters {
-  /** Si viene definido, el precio efectivo del producto debe estar en [min, max]. */
   priceRange: { min: number; max: number } | null;
-  /** Vacío = no filtrar por categoría; si hay ids, el producto debe pertenecer a alguna. */
   categoryIds: number[];
   availabilityOnly: boolean;
 }
@@ -18,7 +15,6 @@ export const useStoreViewStore = defineStore('storeView', () => {
   const error = ref<string | null>(null);
   const currentSortBy = ref('default');
 
-  /** `null`: aún no se ha pulsado «Filtrar» (se muestran todos los productos cargados). */
   const appliedProductFilters = ref<AppliedProductFilters | null>(null);
 
   async function fetchPage() {
