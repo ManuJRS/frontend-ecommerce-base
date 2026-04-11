@@ -2,12 +2,12 @@
 import { ref, onMounted, computed } from 'vue';
 import { api } from '@/core/api';
 import qs from 'qs';
-import type { StoreViewBlock } from '../models';
+import type { ProductGridBlock } from '../models';
 import { useStoreViewStore } from '../stores/storeView.store';
 import type { AppliedProductFilters } from '../stores/storeView.store';
 
 const props = defineProps<{
-  block: StoreViewBlock;
+  block: ProductGridBlock;
 }>();
 
 const rawProducts = ref<any[]>([]);
@@ -34,7 +34,8 @@ function productMatchesFilters(p: any, f: AppliedProductFilters): boolean {
 
   if (f.availabilityOnly) {
     if (p.inStock === false) return false;
-    if (typeof p.stock === 'number' && p.stock <= 0) return false;
+    const sn = productStockNumber(p);
+    if (sn !== null && sn <= 0) return false;
   }
 
   return true;
@@ -69,13 +70,58 @@ const displayProducts = computed(() => {
   return sortList(list, store.currentSortBy);
 });
 
+function productStockNumber(product: any): number | null {
+  const s = product?.stock ?? product?.attributes?.stock;
+  if (s == null || s === '') return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+function productStockMinAdvice(product: any): number | null {
+  const p = product as Record<string, unknown>;
+  const attrs = p.attributes as Record<string, unknown> | undefined;
+  const raw =
+    p.stockMinAdvice ??
+    p.stock_min_advice ??
+    attrs?.stockMinAdvice ??
+    attrs?.stock_min_advice;
+  if (raw == null || raw === '') return null;
+  const n = typeof raw === 'number' ? raw : Number.parseFloat(String(raw));
+  return Number.isFinite(n) ? Math.floor(n) : null;
+}
+
+function resolveStockMinAdviceTitle(product: any): string {
+  const p = product as Record<string, unknown>;
+  const attrs = p.attributes as Record<string, unknown> | undefined;
+  const fromProduct =
+    p.stockMinAdviceTitle ??
+    p.stock_min_advice_title ??
+    attrs?.stockMinAdviceTitle ??
+    attrs?.stock_min_advice_title;
+  if (fromProduct != null && fromProduct !== '') return String(fromProduct);
+  const b = props.block as Record<string, unknown>;
+  const fromBlock = b.stockMinAdviceTitle ?? b.stock_min_advice_title;
+  if (fromBlock != null && fromBlock !== '') return String(fromBlock);
+  return '¡Disponibles!';
+}
+
+/** Muestra la etiqueta si hay stock y `stock <= stockMinAdvice` del producto. */
+function showLowStockLabel(product: any): boolean {
+  const stock = productStockNumber(product);
+  const advice = productStockMinAdvice(product);
+  if (stock === null || advice === null) return false;
+  if (stock <= 0) return false;
+  return stock <= advice;
+}
+
+function isOutOfStock(product: any): boolean {
+  return productStockNumber(product) === 0;
+}
+
 onMounted(async () => {
   if (props.block.dataSource === 'manual_selection') {
     rawProducts.value = [...(props.block.manualProducts || [])];
-    return;
-  }
-
-  if (props.block.dataSource === 'by_category') {
+  } else if (props.block.dataSource === 'by_category') {
     if (props.block.category && props.block.category.products) {
       const limit = props.block.itemsLimit || 12;
       rawProducts.value = props.block.category.products.slice(0, limit);
@@ -83,10 +129,7 @@ onMounted(async () => {
       console.warn('La categoría no tiene productos asignados.');
       rawProducts.value = [];
     }
-    return;
-  }
-
-  if (props.block.dataSource === 'all_products') {
+  } else if (props.block.dataSource === 'all_products') {
     isLoadingProducts.value = true;
     try {
       const queryObj: any = {
@@ -124,17 +167,26 @@ onMounted(async () => {
 
     <div v-else-if="displayProducts.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-16 gap-x-8">
       
-      <div 
-        v-for="product in displayProducts" 
-        :key="product.id" 
-        class="group cursor-pointer"
+      <div
+        v-for="product in displayProducts"
+        :key="product.id"
+        class="group"
+        :class="isOutOfStock(product) ? 'cursor-not-allowed' : 'cursor-pointer'"
       >
-        <div class="relative bg-surface-container-low aspect-[3/4] overflow-hidden mb-6">
-          <img 
-            v-if="product.images && product.images.length > 0" 
-            :src="product.images[0].url" 
-            :alt="product.name" 
-            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+        <div
+          class="relative mb-6 aspect-[3/4] overflow-hidden bg-surface-container-low transition-opacity duration-300"
+          :class="isOutOfStock(product) ? 'opacity-60' : ''"
+        >
+          <img
+            v-if="product.images && product.images.length > 0"
+            :src="product.images[0].url"
+            :alt="product.name"
+            class="h-full w-full object-cover transition-transform duration-500"
+            :class="
+              isOutOfStock(product)
+                ? 'grayscale'
+                : 'group-hover:scale-105'
+            "
           />
           <div v-else class="w-full h-full flex items-center justify-center text-gray-400 text-sm bg-gray-100">
             Sin Imagen
@@ -146,7 +198,7 @@ onMounted(async () => {
             class="flex items-center gap-1.5 bg-white/90 backdrop-blur-sm px-2 py-1 shadow-sm opacity-100 group-hover:opacity-0 transition-opacity duration-300"
           >
             <span class="material-symbols-outlined text-[10px] text-primary">new_releases</span>
-            <span class="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">New Arrival</span>
+            <span class="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">Nuevo</span>
           </div>
 
           <div 
@@ -159,32 +211,88 @@ onMounted(async () => {
           </div>
 
 
-          <button class="absolute bottom-4 left-4 right-4 bg-primary text-on-primary py-4 text-[10px] font-bold uppercase tracking-[0.2em] translate-y-12 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
-            Add to Cart
+          <button
+            type="button"
+            :disabled="isOutOfStock(product)"
+            class="absolute bottom-4 left-4 right-4 py-4 text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300"
+            :class="
+              isOutOfStock(product)
+                ? 'translate-y-0 cursor-not-allowed bg-on-surface-variant/30 text-on-surface-variant opacity-100'
+                : 'translate-y-12 bg-primary text-on-primary opacity-0 group-hover:translate-y-0 group-hover:opacity-100'
+            "
+          >
+            {{ isOutOfStock(product) ? 'Agotado' : 'Add to Cart' }}
           </button>
-          <div v-if="block.showDiscountBadge">
-                    <div v-if="product.discountPercentage && product.discountPercentage > 0" 
-                      class="absolute top-4 left-4 flex flex-col gap-1">
-                      <div v-if="block.badgeFormat === 'amount'" class="bg-white px-2 py-1 flex flex-col items-start leading-none">
-                          <span class="text-[10px] font-bold uppercase tracking-widest text-primary">
-                            Ahorra ${{ (product.price - (product.discountedPrice || (product.price - (product.price * (product.discountPercentage / 100))))).toFixed(0) }}
-                          </span>
-                      </div>
-                      <div v-if="block.badgeFormat === 'percentage'" class="bg-primary text-on-primary px-2 py-1 text-[10px] font-black tracking-tighter">
-                          -{{ product.discountPercentage }}%
-                      </div>
-                    </div>
+          <div class="absolute top-4 left-4 z-10 flex flex-col gap-1 items-start pointer-events-none">
+            <div v-if="block.showDiscountBadge">
+              <div
+                v-if="product.discountPercentage && product.discountPercentage > 0"
+                class="flex flex-col gap-1"
+              >
+                <div
+                  v-if="block.badgeFormat === 'amount'"
+                  class="flex flex-col items-start bg-white px-2 py-1 leading-none"
+                >
+                  <span class="text-[10px] font-bold uppercase tracking-widest text-primary">
+                    Ahorra ${{
+                      (
+                        product.price -
+                        (product.discountedPrice ||
+                          (product.price - product.price * (product.discountPercentage / 100)))
+                      ).toFixed(0)
+                    }}
+                  </span>
+                </div>
+                <div
+                  v-if="block.badgeFormat === 'percentage'"
+                  class="bg-primary px-2 py-1 text-[10px] font-black tracking-tighter text-on-primary"
+                >
+                  -{{ product.discountPercentage }}%
+                </div>
+              </div>
+            </div>
+            <div
+              v-if="showLowStockLabel(product)"
+              class="bg-white/95 px-2 shadow-sm backdrop-blur-sm text-primary pb-0.5"
+            >
+              <span
+                class="text-[10px] font-bold uppercase tracking-widest text-primary"
+              >
+                ({{ productStockNumber(product) }})
+                {{ resolveStockMinAdviceTitle(product) }}
+              </span>
+            </div>
           </div>
-          <button v-if="block.showFavIcon" class="absolute top-4 right-4 backdrop-blur-sm transition-all duration-300 group/fav">
-            <span class="material-symbols-outlined text-sm text-primary hover:text-red-500/80 hover:cursor-pointer group-hover/fav:scale-110 transition-transform" style="font-variation-settings: 'FILL' 0;">favorite</span>
+          <button
+            v-if="block.showFavIcon"
+            type="button"
+            :disabled="isOutOfStock(product)"
+            class="absolute top-4 right-4 backdrop-blur-sm transition-all duration-300 group/fav disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <span
+              class="material-symbols-outlined text-sm text-primary transition-transform group-hover/fav:scale-110"
+              :class="isOutOfStock(product) ? '' : 'hover:cursor-pointer hover:text-red-500/80'"
+              style="font-variation-settings: 'FILL' 0"
+            >favorite</span>
           </button>
         </div>
 
-        <div class="space-y-1">
+        <div class="space-y-1" :class="isOutOfStock(product) ? 'opacity-70' : ''">
           <div class="flex justify-between items-start">
-            <h4 class="text-sm font-bold tracking-tight">{{ product.name }}</h4>
+            <h4
+              class="text-sm font-bold tracking-tight"
+              :class="isOutOfStock(product) ? 'text-on-surface-variant' : ''"
+            >
+              {{ product.name }}
+            </h4>
             <div class="flex gap-2">
-                <span :class="{'text-sm font-medium': true, 'text-on-tertiary-container': product.discountPercentage > 0}">
+                <span
+                  :class="{
+                    'text-sm font-medium': true,
+                    'text-on-tertiary-container': product.discountPercentage > 0 && !isOutOfStock(product),
+                    'text-on-surface-variant': isOutOfStock(product),
+                  }"
+                >
                   ${{ product.discountedPrice ? product.discountedPrice.toFixed(2) : product.price.toFixed(2) }}
                 </span>
                 <span v-if="product.discountPercentage > 0" class="text-xs line-through text-on-surface-variant">
