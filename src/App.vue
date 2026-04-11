@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// Main App Component
+import MainLayout from '@/layouts/MainLayout.vue';
 </script>
 
 <template>
-  <router-view />
+  <MainLayout />
 </template>
