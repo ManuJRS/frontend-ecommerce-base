@@ -3,8 +3,10 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import type { HeaderNavLink } from '../models';
 import { useHeaderStore } from '../stores/header.store';
+import { useCartStore } from '@/features/cart/stores/cart.store';
 
 const headerStore = useHeaderStore();
+const cartStore = useCartStore();
 const route = useRoute();
 
 const data = computed(() => headerStore.header);
@@ -212,11 +214,17 @@ onUnmounted(() => {
               type="button"
               class="hover:cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 rounded-md p-1.5 sm:p-2 transition-all relative"
               aria-label="Carrito"
+              @click="cartStore.openDrawer()"
             >
               <span class="material-symbols-outlined text-[22px] sm:text-[24px]" data-icon="shopping_bag"
                 >shopping_bag</span
               >
-              <span class="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-on-tertiary-container rounded-full" />
+              <span
+                v-if="cartStore.totalItemCount > 0"
+                class="absolute -top-0.5 -right-0.5 sm:top-0 sm:right-0 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-primary text-[10px] font-bold text-on-primary leading-none"
+              >
+                {{ cartStore.totalItemCount > 99 ? '99+' : cartStore.totalItemCount }}
+              </span>
             </button>
           </div>
         </div>
