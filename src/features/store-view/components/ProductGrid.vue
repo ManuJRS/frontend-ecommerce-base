@@ -5,6 +5,7 @@ import qs from 'qs';
 import type { ProductGridBlock } from '../models';
 import { useStoreViewStore } from '../stores/storeView.store';
 import type { AppliedProductFilters } from '../stores/storeView.store';
+import { useCartStore } from '@/features/cart/stores/cart.store';
 
 const props = defineProps<{
   block: ProductGridBlock;
@@ -13,6 +14,12 @@ const props = defineProps<{
 const rawProducts = ref<any[]>([]);
 const isLoadingProducts = ref(false);
 const store = useStoreViewStore();
+const cartStore = useCartStore();
+
+function addToCart(product: Record<string, unknown>) {
+  if (isOutOfStock(product)) return;
+  cartStore.addProduct(product);
+}
 
 function effectivePrice(p: any): number {
   const d = p.discountedPrice;
@@ -209,8 +216,6 @@ onMounted(async () => {
             <span class="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">Bestseller</span>
           </div>
           </div>
-
-
           <button
             type="button"
             :disabled="isOutOfStock(product)"
@@ -220,6 +225,7 @@ onMounted(async () => {
                 ? 'translate-y-0 cursor-not-allowed bg-on-surface-variant/30 text-on-surface-variant opacity-100'
                 : 'translate-y-12 bg-primary text-on-primary opacity-0 group-hover:translate-y-0 group-hover:opacity-100'
             "
+            @click.stop="addToCart(product)"
           >
             {{ isOutOfStock(product) ? 'Agotado' : 'Add to Cart' }}
           </button>
@@ -267,7 +273,7 @@ onMounted(async () => {
             v-if="block.showFavIcon"
             type="button"
             :disabled="isOutOfStock(product)"
-            class="absolute top-4 right-4 backdrop-blur-sm transition-all duration-300 group/fav disabled:cursor-not-allowed disabled:opacity-40"
+            class="absolute top-4 right-4 transition-all duration-300 group/fav disabled:cursor-not-allowed disabled:opacity-40"
           >
             <span
               class="material-symbols-outlined text-sm text-primary transition-transform group-hover/fav:scale-110"
