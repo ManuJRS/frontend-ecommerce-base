@@ -3,12 +3,24 @@ import { computed, onMounted, onUnmounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useCartStore } from '../stores/cart.store';
 import { useCartConfigStore } from '../stores/cartConfig.store';
+import { resolveShippingDisplayText } from '../utils/checkoutShipping';
+import CartShippingNudge from './CartShippingNudge.vue';
 
 const cart = useCartStore();
 const cartConfig = useCartConfigStore();
-const { items, drawerOpen, subtotal } = storeToRefs(cart);
+const { items, drawerOpen, subtotal, totalItemCount } = storeToRefs(cart);
+const { checkoutCopy } = storeToRefs(cartConfig);
 
 const copy = computed(() => cartConfig.modalCopy);
+
+const displayShippingText = computed(() =>
+  resolveShippingDisplayText(
+    checkoutCopy.value,
+    copy.value?.shippingText ?? '',
+    totalItemCount.value,
+    subtotal.value
+  )
+);
 
 function productName(p: Record<string, unknown>): string {
   return String(p.name ?? '');
@@ -73,7 +85,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <div
       v-show="drawerOpen"
-      class="fixed inset-0 z-[60] flex justify-end"
+      class="fixed inset-0 z-[60] flex min-h-0 justify-end"
       role="dialog"
       aria-modal="true"
       :aria-labelledby="copy ? 'cart-modal-title' : undefined"
@@ -85,13 +97,16 @@ onUnmounted(() => {
       />
 
       <div
-        class="relative w-full max-w-lg h-full bg-surface-container-lowest shadow-2xl flex flex-col"
+        class="relative flex h-full min-h-0 w-full max-w-lg flex-col bg-surface-container-lowest shadow-2xl"
         @click.stop
       >
-        <div class="px-6 sm:px-8 h-24 flex items-center justify-between border-b border-outline-variant/15 shrink-0">
-          <h2 id="cart-modal-title" class="text-xl sm:text-2xl font-bold font-manrope tracking-tight pr-2">
-            {{ copy?.title ?? '…' }}
-          </h2>
+        <div class="flex shrink-0 items-start justify-between gap-4 border-b border-outline-variant/15 px-6 py-4 sm:px-8 sm:py-5">
+          <div class="min-w-0 flex-1">
+            <h2 id="cart-modal-title" class="text-xl font-bold font-manrope tracking-tight sm:text-2xl">
+              {{ copy?.title ?? '…' }}
+            </h2>
+            <span class="mt-1 block text-sm text-on-surface-variant">{{ cart.totalItemCount }} items en el carrito</span>
+          </div>
           <button
             type="button"
             class="p-2 hover:cursor-pointer transition-colors rounded-full shrink-0 hover:text-error transition-colors"
@@ -102,7 +117,11 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto px-6 sm:px-8 py-8 sm:py-10">
+        <div class="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div
+            class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 sm:px-8 py-8 sm:py-10"
+            :class="items.length > 0 && copy?.promoText ? 'pb-24 sm:pb-28' : ''"
+          >
           <div v-if="items.length === 0" class="text-center text-sm text-on-surface-variant py-12">
             {{copy?.emptyMessage ?? 'Tu carrito está vacío.'}}
           </div>
@@ -170,6 +189,16 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
+          </div>
+
+          <CartShippingNudge
+            v-if="items.length > 0"
+            :checkout-copy="checkoutCopy"
+            :total-item-count="totalItemCount"
+            :subtotal="subtotal"
+            :promo-text="copy?.promoText"
+            variant="floating"
+          />
         </div>
 
         <div
@@ -179,7 +208,7 @@ onUnmounted(() => {
           <div class="space-y-2">
             <div class="flex justify-between text-sm text-on-surface-variant gap-4">
               <span>{{ copy?.shippingTitle ?? 'Envío' }}</span>
-              <span class="text-right">{{ copy?.shippingText ?? '' }}</span>
+              <span class="text-right">{{ displayShippingText }}</span>
             </div>
             <div class="flex justify-between items-end gap-4">
               <span class="text-lg font-bold font-manrope">Subtotal</span>
