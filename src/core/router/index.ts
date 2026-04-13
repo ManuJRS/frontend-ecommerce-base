@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw } from 'vue-router';
 
 const HomePage = () => import('@/features/home/views/HomePage.vue');
-const StoreViewPage = () => import('@/features/store-view/views/StoreViewPage.vue');
+const SlugEntryView = () => import('@/features/routing/views/SlugEntryView.vue');
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -11,10 +11,12 @@ const routes: Array<RouteRecordRaw> = [
     component: HomePage,
   },
   {
-    /** Slug canónico de la tienda (p. ej. `tiendas-1`), alineado con `StoreViewPageData.slug` */
+    /**
+     * Página de tienda (`StoreViewPage`) o carrito (`CartViewPage`) según `slug` en `cart-config`.
+     */
     path: '/:slug',
     name: 'DynamicStoreView',
-    component: StoreViewPage,
+    component: SlugEntryView,
   },
 ];
 

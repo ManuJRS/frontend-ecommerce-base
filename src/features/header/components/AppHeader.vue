@@ -4,10 +4,26 @@ import { useRoute } from 'vue-router';
 import type { HeaderNavLink } from '../models';
 import { useHeaderStore } from '../stores/header.store';
 import { useCartStore } from '@/features/cart/stores/cart.store';
+import { useCartConfigStore } from '@/features/cart/stores/cartConfig.store';
 
 const headerStore = useHeaderStore();
 const cartStore = useCartStore();
+const cartConfigStore = useCartConfigStore();
 const route = useRoute();
+
+const isOnCartViewPage = computed(() => {
+  const slug = route.params.slug;
+  return typeof slug === 'string' && cartConfigStore.isCartSlug(slug);
+});
+
+function onCartIconClick() {
+  if (isOnCartViewPage.value) return;
+  cartStore.openDrawer();
+}
+
+watch(isOnCartViewPage, (onCart) => {
+  if (onCart) cartStore.closeDrawer();
+});
 
 const data = computed(() => headerStore.header);
 
@@ -214,7 +230,7 @@ onUnmounted(() => {
               type="button"
               class="hover:cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 rounded-md p-1.5 sm:p-2 transition-all relative"
               aria-label="Carrito"
-              @click="cartStore.openDrawer()"
+              @click="onCartIconClick"
             >
               <span class="material-symbols-outlined text-[22px] sm:text-[24px]" data-icon="shopping_bag"
                 >shopping_bag</span
