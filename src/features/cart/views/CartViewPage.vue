@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useCartStore } from '../stores/cart.store';
 import { useCartConfigStore } from '../stores/cartConfig.store';
+import { resolveShippingDisplayText } from '../utils/checkoutShipping';
+import CartShippingNudge from '../components/CartShippingNudge.vue';
 
 const cart = useCartStore();
 const cartConfig = useCartConfigStore();
@@ -11,10 +13,21 @@ const route = useRoute();
 const router = useRouter();
 
 const { items, totalItemCount, subtotal } = storeToRefs(cart);
-const { modalCopy, pageCopy } = storeToRefs(cartConfig);
+const { modalCopy, pageCopy, checkoutCopy } = storeToRefs(cartConfig);
 
-const taxRate = 0;
-const estimatedTax = computed(() => subtotal.value * taxRate);
+const displayShippingRowValue = computed(() =>
+  resolveShippingDisplayText(
+    checkoutCopy.value,
+    modalCopy.value?.shippingText ?? '',
+    totalItemCount.value,
+    subtotal.value
+  )
+);
+
+const estimatedTax = computed(() => {
+  const pct = pageCopy.value?.taxAmount ?? 0;
+  return subtotal.value * (pct / 100);
+});
 const grandTotal = computed(() => subtotal.value + estimatedTax.value);
 
 function formatMoney(n: number): string {
@@ -81,9 +94,10 @@ onMounted(() => {
       {{ modalCopy?.emptyMessage ?? 'Tu carrito está vacío.' }}
     </div>
 
-    <div v-else class="flex flex-col lg:flex-row gap-12 lg:gap-16">
-      <div class="flex-grow space-y-8 sm:space-y-12 min-w-0">
-        <div
+    <div v-else class="flex flex-col gap-10 sm:gap-12 lg:gap-16">
+      <div class="flex flex-col gap-12 lg:flex-row lg:gap-16">
+        <div class="min-w-0 flex-grow space-y-8 sm:space-y-12">
+          <div
           v-for="(line, index) in items"
           :key="`${line.product.id ?? 'noid'}-${index}`"
           class="group flex flex-col md:flex-row gap-6 sm:gap-8 bg-surface-container-lowest p-4 sm:p-6 rounded-lg transition-transform hover:scale-[1.01]"
@@ -145,78 +159,86 @@ onMounted(() => {
             </div>
           </div>
         </div>
-
-        <div
-          v-if="modalCopy?.promoText"
-          class="mt-8 sm:mt-12 p-6 sm:p-8 bg-primary-fixed/30 rounded-xl flex items-center gap-4 sm:gap-6"
-        >
-          <span class="material-symbols-outlined text-primary shrink-0" data-icon="shipped">local_shipping</span>
-          <p class="text-sm font-medium text-on-primary-fixed-variant leading-snug">
-            {{ modalCopy.promoText }}
-          </p>
         </div>
+
+        <aside class="w-full shrink-0 lg:w-96 lg:sticky lg:top-28 flex flex-col space-y-4">
+  
+  <div class="bg-surface-container-lowest p-6 sm:p-8 rounded-xl shadow-sm space-y-6 sm:space-y-8">
+    <h2 class="text-xs uppercase tracking-[0.2em] font-bold text-on-surface-variant">
+      {{ pageCopy?.orderSummaryTitle ?? '' }}
+    </h2>
+    <div class="space-y-4 border-b border-outline-variant/20 pb-8">
+      <div class="flex justify-between text-on-surface-variant text-sm gap-4">
+        <span>{{ pageCopy?.summarySubtotalText ?? 'Subtotal' }}</span>
+        <span class="tabular-nums">${{ formatMoney(subtotal) }}</span>
+      </div>
+      <div class="flex justify-between text-on-surface-variant text-sm gap-4">
+        <span>{{ pageCopy?.shippingRowLabel ?? '' }}</span>
+        <span class="text-right tabular-nums">{{ displayShippingRowValue }}</span>
+      </div>
+      <div class="flex justify-between text-on-surface-variant text-sm gap-4">
+        <span>{{ pageCopy?.summaryTaxText ?? '' }}</span>
+        <span class="tabular-nums">${{ formatMoney(estimatedTax) }}</span>
+      </div>
+    </div>
+    
+    <div class="flex justify-between items-baseline gap-4">
+      <span class="text-lg font-bold">Total</span>
+      <span class="text-2xl sm:text-3xl font-extrabold tracking-tighter tabular-nums">
+        ${{ formatMoney(grandTotal) }}
+      </span>
+    </div>
+    
+    <button
+      type="button"
+      class="w-full bg-primary text-on-primary py-6 rounded-md font-headline font-bold text-sm tracking-widest uppercase hover:opacity-90 transition-all shadow-xl shadow-primary/10"
+    >
+      {{ pageCopy?.summaryBtnCheckout ?? '' }}
+    </button>
+    
+    <div v-if="pageCopy?.summaryBadge?.length" class="space-y-4 pt-2">
+      <div
+        v-for="badge in pageCopy.summaryBadge"
+        :key="badge.id"
+        class="flex items-center gap-3 text-xs text-on-surface-variant"
+      >
+        <img
+          v-if="badge.svg"
+          :src="badge.svg"
+          alt=""
+          class="w-5 h-5 shrink-0 object-contain"
+        />
+        <span
+          v-else
+          class="material-symbols-outlined text-sm shrink-0 text-on-surface-variant"
+          aria-hidden="true"
+        >
+          verified
+        </span>
+        <span>{{ badge.badgeText }}</span>
+      </div>
+    </div>
+    
+    <div v-if="pageCopy?.summaryMessage" class="pt-4 border-t border-outline-variant/10">
+      <p class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 leading-relaxed">
+        {{ pageCopy.summaryMessage }}
+      </p>
+    </div>
+  </div>
+
+  <CartShippingNudge
+    :checkout-copy="checkoutCopy"
+    :total-item-count="totalItemCount"
+    :subtotal="subtotal"
+    :promo-text="modalCopy?.promoText"
+    variant="block"
+  />
+
+</aside>
+
       </div>
 
-      <aside class="w-full lg:w-96 shrink-0">
-        <div class="lg:sticky lg:top-28 bg-surface-container-lowest p-6 sm:p-8 rounded-xl shadow-sm space-y-6 sm:space-y-8">
-          <h2 class="text-xs uppercase tracking-[0.2em] font-bold text-on-surface-variant">
-            {{ pageCopy?.orderSummaryTitle ?? '' }}
-          </h2>
-          <div class="space-y-4 border-b border-outline-variant/20 pb-8">
-            <div class="flex justify-between text-on-surface-variant text-sm gap-4">
-              <span>{{ pageCopy?.summarySubtotalText ?? 'Subtotal' }}</span>
-              <span class="tabular-nums">${{ formatMoney(subtotal) }}</span>
-            </div>
-            <div class="flex justify-between text-on-surface-variant text-sm gap-4">
-              <span>{{ pageCopy?.shippingRowLabel ?? '' }}</span>
-              <span class="text-primary font-bold">FREE</span>
-            </div>
-            <div class="flex justify-between text-on-surface-variant text-sm gap-4">
-              <span>{{ pageCopy?.summaryTaxText ?? '' }}</span>
-              <span class="tabular-nums">${{ formatMoney(estimatedTax) }}</span>
-            </div>
-          </div>
-          <div class="flex justify-between items-baseline gap-4">
-            <span class="text-lg font-bold">Total</span>
-            <span class="text-2xl sm:text-3xl font-extrabold tracking-tighter tabular-nums">
-              ${{ formatMoney(grandTotal) }}
-            </span>
-          </div>
-          <button
-            type="button"
-            class="w-full bg-primary text-on-primary py-6 rounded-md font-headline font-bold text-sm tracking-widest uppercase hover:opacity-90 transition-all shadow-xl shadow-primary/10"
-          >
-            {{ pageCopy?.summaryBtnCheckout ?? '' }}
-          </button>
-          <div v-if="pageCopy?.summaryBadge?.length" class="space-y-4 pt-2">
-            <div
-              v-for="badge in pageCopy.summaryBadge"
-              :key="badge.id"
-              class="flex items-center gap-3 text-xs text-on-surface-variant"
-            >
-              <img
-                v-if="badge.svg"
-                :src="badge.svg"
-                alt=""
-                class="w-5 h-5 shrink-0 object-contain"
-              />
-              <span
-                v-else
-                class="material-symbols-outlined text-sm shrink-0 text-on-surface-variant"
-                aria-hidden="true"
-              >
-                verified
-              </span>
-              <span>{{ badge.badgeText }}</span>
-            </div>
-          </div>
-          <div v-if="pageCopy?.summaryMessage" class="pt-4 border-t border-outline-variant/10">
-            <p class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 leading-relaxed">
-              {{ pageCopy.summaryMessage }}
-            </p>
-          </div>
-        </div>
-      </aside>
+
     </div>
   </div>
 </template>

@@ -3,6 +3,7 @@ import qs from 'qs';
 import type {
   CartFullConfig,
   CartModalConfig,
+  CheckoutConfig,
   CartPageCopy,
   SummaryBadgeItem,
 } from '../models';
@@ -69,10 +70,48 @@ const DEFAULT_PAGE: CartPageCopy = {
   summarySubtotalText: 'Subtotal',
   shippingRowLabel: 'Envío estimado',
   summaryTaxText: 'Impuestos',
+  taxAmount: 0,
   summaryBtnCheckout: 'Ir al checkout',
   summaryMessage: '',
   summaryBadge: [],
 };
+
+const DEFAULT_CHECKOUT: CheckoutConfig = {
+  discountMode: 'N/A',
+  quantityDiscount: null,
+  amountDiscount: null,
+  shippingFreeText: '',
+};
+
+const CHECKOUT_DISCOUNT_MODES: readonly CheckoutConfig['discountMode'][] = [
+  'N/A',
+  'discountByQuantity',
+  'discountByAmount',
+];
+
+function numOrNull(raw: unknown): number | null {
+  if (raw == null || raw === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function mapCheckout(raw: Record<string, unknown>): CheckoutConfig {
+  const mode = raw.discountMode;
+  const discountMode =
+    typeof mode === 'string' &&
+    (CHECKOUT_DISCOUNT_MODES as readonly string[]).includes(mode)
+      ? (mode as CheckoutConfig['discountMode'])
+      : DEFAULT_CHECKOUT.discountMode;
+
+  const amountRaw = raw.amountDiscount ?? raw.discountByAmount;
+
+  return {
+    discountMode,
+    quantityDiscount: numOrNull(raw.quantityDiscount),
+    amountDiscount: numOrNull(amountRaw),
+    shippingFreeText: String(raw.shippingFreeText ?? DEFAULT_CHECKOUT.shippingFreeText),
+  };
+}
 
 function mapModal(modal: Record<string, unknown>): CartModalConfig {
   return {
@@ -103,6 +142,10 @@ function mapPage(data: Record<string, unknown>): CartPageCopy {
       data.summaryShippingText ?? DEFAULT_PAGE.shippingRowLabel
     ),
     summaryTaxText: String(data.summaryTaxText ?? DEFAULT_PAGE.summaryTaxText),
+    taxAmount: (() => {
+      const n = Number(data.taxAmount);
+      return Number.isFinite(n) ? n : DEFAULT_PAGE.taxAmount;
+    })(),
     summaryBtnCheckout: String(
       data.summaryBtnCheckout ?? DEFAULT_PAGE.summaryBtnCheckout
     ),
@@ -127,6 +170,7 @@ export const CartConfigService = {
 
     try {
       const response = await api.get(`/cart-config?${query}`);
+      console.log('[cart-config] /api/cart-config', response.data);
       const data = unwrapEntity(response.data.data as Record<string, unknown>);
 
       const modalRaw = data.cartModal;
@@ -136,12 +180,16 @@ export const CartConfigService = {
           ? mapModal(modalFlat)
           : DEFAULT_MODAL;
 
+      /** Reglas de envío: vienen en la misma entidad `cart-config`, no anidadas en otro recurso. */
+      const checkoutConfig = mapCheckout(data);
+
       const page = mapPage(data);
 
-      return { cartModal, page };
+      return { cartModal, checkoutConfig, page };
     } catch {
       return {
         cartModal: DEFAULT_MODAL,
+        checkoutConfig: DEFAULT_CHECKOUT,
         page: DEFAULT_PAGE,
       };
     }
