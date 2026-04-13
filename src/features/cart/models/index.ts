@@ -8,6 +8,15 @@ export interface CartModalConfig {
   emptyMessage: string;
 }
 
+/** Reglas de envío / descuentos: campos en la entrada `cart-config` (mismo nivel que el resto). */
+export interface CheckoutConfig {
+  discountMode: 'N/A' | 'discountByQuantity' | 'discountByAmount';
+  quantityDiscount: number | null;
+  /** Umbral de subtotal para envío gratuito (modo `discountByAmount`). */
+  amountDiscount: number | null;
+  shippingFreeText: string;
+}
+
 /** Badges del resumen (página carrito). */
 export interface SummaryBadgeItem {
   id: number;
@@ -27,6 +36,8 @@ export interface CartPageCopy {
   summarySubtotalText: string;
   shippingRowLabel: string;
   summaryTaxText: string;
+  /** Porcentaje de impuesto (ej. `16` = 16 %). */
+  taxAmount: number;
   summaryBtnCheckout: string;
   summaryMessage: string;
   summaryBadge: SummaryBadgeItem[];
@@ -34,5 +45,6 @@ export interface CartPageCopy {
 
 export interface CartFullConfig {
   cartModal: CartModalConfig;
+  checkoutConfig: CheckoutConfig;
   page: CartPageCopy;
 }
