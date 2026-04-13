@@ -7,7 +7,7 @@ import { useCartConfigStore } from '@/features/cart/stores/cartConfig.store';
 const cartConfig = useCartConfigStore();
 
 onMounted(() => {
-  cartConfig.fetchCartModalConfig();
+  cartConfig.fetchFullCartConfig();
 });
 </script>
 
