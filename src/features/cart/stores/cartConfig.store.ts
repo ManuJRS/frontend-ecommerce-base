@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { CartModalConfig, CartPageCopy } from '../models';
+import type { CartModalConfig, CartPageCopy, CheckoutConfig } from '../models';
 import { CartConfigService } from '../services/cartConfig.service';
 
 export const useCartConfigStore = defineStore('cartConfig', () => {
   const modalCopy = ref<CartModalConfig | null>(null);
+  const checkoutCopy = ref<CheckoutConfig | null>(null);
   const pageCopy = ref<CartPageCopy | null>(null);
   const loaded = ref(false);
   const loading = ref(false);
@@ -12,7 +13,7 @@ export const useCartConfigStore = defineStore('cartConfig', () => {
   let inflight: Promise<void> | null = null;
 
   async function fetchFullCartConfig(): Promise<void> {
-    if (loaded.value && modalCopy.value && pageCopy.value) {
+    if (loaded.value && modalCopy.value && checkoutCopy.value && pageCopy.value) {
       return;
     }
     if (!inflight) {
@@ -21,6 +22,7 @@ export const useCartConfigStore = defineStore('cartConfig', () => {
         try {
           const full = await CartConfigService.getFullCartConfig();
           modalCopy.value = full.cartModal;
+          checkoutCopy.value = full.checkoutConfig;
           pageCopy.value = full.page;
           loaded.value = true;
         } finally {
@@ -40,6 +42,7 @@ export const useCartConfigStore = defineStore('cartConfig', () => {
 
   return {
     modalCopy,
+    checkoutCopy,
     pageCopy,
     loaded,
     loading,
