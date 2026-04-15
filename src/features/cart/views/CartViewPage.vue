@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useCartStore } from '../stores/cart.store';
 import { useCartConfigStore } from '../stores/cartConfig.store';
 import { resolveShippingDisplayText } from '../utils/checkoutShipping';
+import { StoreViewService } from '@/features/store-view/services/storeView.service';
 import CartShippingNudge from '../components/CartShippingNudge.vue';
 
 const cart = useCartStore();
@@ -29,6 +30,13 @@ const estimatedTax = computed(() => {
   return subtotal.value * (pct / 100);
 });
 const grandTotal = computed(() => subtotal.value + estimatedTax.value);
+
+const storeSlug = ref<string | null>(null);
+const storePath = computed(() => (storeSlug.value ? `/${storeSlug.value}` : '/'));
+
+function goToCheckout() {
+  void router.push({ name: 'Checkout' });
+}
 
 function formatMoney(n: number): string {
   return n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -76,12 +84,21 @@ onMounted(() => {
   if (canonical && slug && slug !== canonical) {
     void router.replace({ name: 'DynamicStoreView', params: { slug: canonical } });
   }
+
+  void StoreViewService.getStoreViewPage().then((page) => {
+    if (page?.slug) storeSlug.value = page.slug;
+  });
 });
 </script>
 
 <template>
   <div class="pt-8 pb-20 px-4 sm:px-8 max-w-7xl mx-auto">
     <header class="mb-10 sm:mb-16">
+      <nav class="mb-4 text-sm text-on-surface-variant" aria-label="Breadcrumb">
+        <router-link :to="storePath" class="hover:text-primary transition-colors">Tienda</router-link>
+        <span class="mx-2">/</span>
+        <span class="text-on-surface">Carrito</span>
+      </nav>
       <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter text-primary mb-3 sm:mb-4">
         {{ pageCopy?.pageTitle ?? '…' }}
       </h1>
@@ -192,6 +209,7 @@ onMounted(() => {
     <button
       type="button"
       class="w-full bg-primary text-on-primary py-6 rounded-md font-headline font-bold text-sm tracking-widest uppercase hover:opacity-90 transition-all shadow-xl shadow-primary/10"
+      @click="goToCheckout"
     >
       {{ pageCopy?.summaryBtnCheckout ?? '' }}
     </button>

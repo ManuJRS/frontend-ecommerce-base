@@ -16,13 +16,21 @@ const isOnCartViewPage = computed(() => {
   return typeof slug === 'string' && cartConfigStore.isCartSlug(slug);
 });
 
+const isOnCheckoutView = computed(() => {
+  return route.path.startsWith('/checkout') || route.path.startsWith('/chekout');
+});
+
 function onCartIconClick() {
-  if (isOnCartViewPage.value) return;
+  if (isOnCartViewPage.value || isOnCheckoutView.value) return;
   cartStore.openDrawer();
 }
 
 watch(isOnCartViewPage, (onCart) => {
   if (onCart) cartStore.closeDrawer();
+});
+
+watch(isOnCheckoutView, (onCheckout) => {
+  if (onCheckout) cartStore.closeDrawer();
 });
 
 const data = computed(() => headerStore.header);
@@ -99,6 +107,7 @@ watch(mobileNavOpen, (open) => {
 
 onMounted(() => {
   headerStore.fetchHeader();
+  void cartConfigStore.fetchFullCartConfig();
   document.addEventListener('keydown', onDocumentKeydown);
 });
 
@@ -228,7 +237,9 @@ onUnmounted(() => {
             <button
               v-if="data?.showCart"
               type="button"
-              class="hover:cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 rounded-md p-1.5 sm:p-2 transition-all relative"
+              :disabled="isOnCartViewPage || isOnCheckoutView"
+              :aria-disabled="isOnCartViewPage || isOnCheckoutView"
+              class="hover:cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 rounded-md p-1.5 sm:p-2 transition-all relative disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
               aria-label="Carrito"
               @click="onCartIconClick"
             >
