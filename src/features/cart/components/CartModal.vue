@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
+import { useRouter } from 'vue-router';
 import { useCartStore } from '../stores/cart.store';
 import { useCartConfigStore } from '../stores/cartConfig.store';
 import { resolveShippingDisplayText } from '../utils/checkoutShipping';
@@ -8,6 +9,7 @@ import CartShippingNudge from './CartShippingNudge.vue';
 
 const cart = useCartStore();
 const cartConfig = useCartConfigStore();
+const router = useRouter();
 const { items, drawerOpen, subtotal, totalItemCount } = storeToRefs(cart);
 const { checkoutCopy } = storeToRefs(cartConfig);
 
@@ -58,6 +60,11 @@ function lineTotalAmount(line: { product: Record<string, unknown>; quantity: num
 
 function onBackdropClick() {
   cart.closeDrawer();
+}
+
+function goToCheckout() {
+  cart.closeDrawer();
+  void router.push({ name: 'Checkout' });
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -220,6 +227,7 @@ onUnmounted(() => {
           <button
             type="button"
             class="hover:cursor-pointer w-full h-16 bg-primary text-on-primary font-manrope font-bold tracking-widest uppercase text-sm hover:bg-primary/90 transition-all active:scale-[0.98] shadow-lg"
+            @click="goToCheckout"
           >
             {{ copy?.checkoutButtonText ?? 'Proceder al pago' }}
           </button>
