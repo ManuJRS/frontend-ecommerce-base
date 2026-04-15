@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@stripe/stripe-js": "^9.2.0",
     "axios": "^1.14.0",
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
