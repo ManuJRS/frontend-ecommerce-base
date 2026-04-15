@@ -13,6 +13,45 @@ export const api = axios.create({
   },
 });
 
+export interface PaymentIntentItemPayload {
+  documentId: string;
+  quantity: number;
+}
+
+export interface PaymentIntentResponse {
+  clientSecret: string;
+  documentId: string;
+}
+
+export const fetchPaymentIntent = async (
+  items: PaymentIntentItemPayload[]
+): Promise<PaymentIntentResponse> => {
+  try {
+    const response = await api.post('/orders/payment-intent', { items });
+    return {
+      clientSecret: response.data.clientSecret as string,
+      documentId: response.data.documentId as string,
+    };
+  } catch (error) {
+    console.error('Error al iniciar el checkout:', error);
+    throw error;
+  }
+};
+
+export const updateOrderAddress = async (
+  documentId: string,
+  addressData: any
+): Promise<void> => {
+  try {
+    await api.put(`/orders/${documentId}/address`, {
+      data: { shippingAddress: addressData },
+    });
+  } catch (error) {
+    console.error('Error al actualizar la dirección de la orden:', error);
+    throw error;
+  }
+};
+
 // Request interceptor for auth token (if needed in the future)
 api.interceptors.request.use(
   (config) => {

@@ -3,12 +3,24 @@ import type { RouteRecordRaw } from 'vue-router';
 
 const HomePage = () => import('@/features/home/views/HomePage.vue');
 const SlugEntryView = () => import('@/features/routing/views/SlugEntryView.vue');
+const CheckoutPage = () => import('@/features/checkout/views/CheckoutPage.vue');
+const CheckoutSuccessPage = () => import('@/features/checkout/views/CheckoutSuccess.vue');
 
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
     name: 'Home',
     component: HomePage,
+  },
+  {
+    path: '/checkout/success',
+    name: 'CheckoutSuccess',
+    component: CheckoutSuccessPage,
+  },
+  {
+    path: '/checkout',
+    name: 'Checkout',
+    component: CheckoutPage,
   },
   {
     /**
