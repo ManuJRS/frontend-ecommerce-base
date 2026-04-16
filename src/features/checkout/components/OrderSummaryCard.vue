@@ -14,6 +14,8 @@ const props = defineProps<{
   shippingLabel?: string;
   taxLabel?: string;
   totalLabel?: string;
+  isFallbackShipping?: boolean;
+  fallbackShippingWarning?: string;
 }>();
 
 function formatMoney(n: number): string {
@@ -98,6 +100,12 @@ function lineUnitTotal(line: CheckoutLineItem): number {
         <span>{{ props.totalLabel ?? 'Total' }}</span>
         <span>${{ formatMoney(props.totalAfterTax) }}</span>
       </div>
+      <p
+        v-if="props.isFallbackShipping && props.fallbackShippingWarning?.trim()"
+        class="mt-3 text-xs text-on-surface-variant/90 leading-relaxed border border-outline-variant/30 rounded-lg px-3 py-2 bg-surface-container-high/40"
+      >
+        {{ props.fallbackShippingWarning }}
+      </p>
     </div>
   </div>
 </template>

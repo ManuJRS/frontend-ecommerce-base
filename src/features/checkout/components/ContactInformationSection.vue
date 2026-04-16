@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed } from 'vue';
 import { useCartConfigStore } from '@/features/cart/stores/cartConfig.store';
 
 interface CheckoutContactModel {
   email: string;
+  marketingOptIn: boolean;
 }
+
+const props = defineProps<{
+  disabled?: boolean;
+}>();
 
 const model = defineModel<CheckoutContactModel>({
   required: true,
@@ -17,10 +22,10 @@ const cartPath = computed(() => {
   return `/${slug}`;
 });
 
-onMounted(() => {
-  if (!cartConfigStore.loaded) {
-    void cartConfigStore.fetchFullCartConfig();
-  }
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const hasEmailFormatError = computed(() => {
+  const email = model.value.email.trim();
+  return email.length > 0 && !EMAIL_REGEX.test(email);
 });
 </script>
 
@@ -39,20 +44,29 @@ onMounted(() => {
         <label
           class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1"
         >
-          Email Address
+          Email Address <span class="text-error">*</span>
         </label>
         <input
-          class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300"
+          class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+          :class="hasEmailFormatError ? 'ring-1 ring-error/60' : ''"
           placeholder="curator@atelier.com"
           type="email"
           v-model="model.email"
+          required
+          :disabled="props.disabled"
+          :aria-invalid="hasEmailFormatError"
         />
+        <p v-if="hasEmailFormatError" class="mt-2 ml-1 text-xs text-error">
+          Ingresa un correo electronico valido (ejemplo@dominio.com)
+        </p>
       </div>
       <div class="flex items-center gap-3 ml-1">
         <input
           id="newsletter"
-          class="rounded-sm border-outline-variant text-primary focus:ring-primary"
+          class="rounded-sm border-outline-variant text-primary focus:ring-primary disabled:opacity-60"
           type="checkbox"
+          v-model="model.marketingOptIn"
+          :disabled="props.disabled"
         />
         <label class="text-sm text-on-surface-variant" for="newsletter">
           Keep me updated with new collections and editorials
