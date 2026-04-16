@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useCartStore } from '../stores/cart.store';
 import { useCartConfigStore } from '../stores/cartConfig.store';
-import { resolveShippingDisplayText } from '../utils/checkoutShipping';
+import { resolveShippingAmount, resolveShippingDisplayText } from '../utils/checkoutShipping';
 import { StoreViewService } from '@/features/store-view/services/storeView.service';
 import CartShippingNudge from '../components/CartShippingNudge.vue';
 
@@ -29,7 +29,10 @@ const estimatedTax = computed(() => {
   const pct = pageCopy.value?.taxAmount ?? 0;
   return subtotal.value * (pct / 100);
 });
-const grandTotal = computed(() => subtotal.value + estimatedTax.value);
+const shippingAmount = computed(() =>
+  resolveShippingAmount(checkoutCopy.value, totalItemCount.value, subtotal.value)
+);
+const grandTotal = computed(() => subtotal.value + estimatedTax.value + shippingAmount.value);
 
 const storeSlug = ref<string | null>(null);
 const storePath = computed(() => (storeSlug.value ? `/${storeSlug.value}` : '/'));

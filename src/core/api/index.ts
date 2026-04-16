@@ -23,11 +23,37 @@ export interface PaymentIntentResponse {
   documentId: string;
 }
 
+export interface PaymentIntentContactPayload {
+  email: string;
+  marketingOptIn: boolean;
+}
+
+export interface PaymentIntentShippingPayload {
+  firstName: string;
+  lastName: string;
+  address: string;
+  country: string;
+  phone: string;
+  city: string;
+  postalCode: string;
+  /** Mismo valor que `postalCode` cuando el backend espera el campo `zipCode`. */
+  zipCode: string;
+  deliveryInstructions: string;
+}
+
+/** Cuerpo enviado al crear la orden / PaymentIntent (backend puede persistir contacto y dirección). */
+export interface PaymentIntentRequestBody {
+  items: PaymentIntentItemPayload[];
+  zipCode: string;
+  contact: PaymentIntentContactPayload;
+  shippingAddress: PaymentIntentShippingPayload;
+}
+
 export const fetchPaymentIntent = async (
-  items: PaymentIntentItemPayload[]
+  body: PaymentIntentRequestBody
 ): Promise<PaymentIntentResponse> => {
   try {
-    const response = await api.post('/orders/payment-intent', { items });
+    const response = await api.post('/orders/payment-intent', body);
     return {
       clientSecret: response.data.clientSecret as string,
       documentId: response.data.documentId as string,

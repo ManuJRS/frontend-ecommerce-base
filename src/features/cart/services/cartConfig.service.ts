@@ -80,7 +80,15 @@ const DEFAULT_CHECKOUT: CheckoutConfig = {
   discountMode: 'N/A',
   quantityDiscount: null,
   amountDiscount: null,
+  enableBaseShipping: false,
+  enableLocalShipping: false,
+  enableFreeShipping: false,
+  baseShippingCost: 0,
+  localShippingCost: 0,
+  localZipCodes: '',
   shippingFreeText: '',
+  fallbackShippingText: '',
+  fallbackShippingWarning: '',
 };
 
 const CHECKOUT_DISCOUNT_MODES: readonly CheckoutConfig['discountMode'][] = [
@@ -93,6 +101,13 @@ function numOrNull(raw: unknown): number | null {
   if (raw == null || raw === '') return null;
   const n = Number(raw);
   return Number.isFinite(n) ? n : null;
+}
+
+function boolOr(raw: unknown, fallback: boolean): boolean {
+  if (typeof raw === 'boolean') return raw;
+  if (raw === 'true' || raw === true) return true;
+  if (raw === 'false' || raw === false) return false;
+  return fallback;
 }
 
 function mapCheckout(raw: Record<string, unknown>): CheckoutConfig {
@@ -109,7 +124,19 @@ function mapCheckout(raw: Record<string, unknown>): CheckoutConfig {
     discountMode,
     quantityDiscount: numOrNull(raw.quantityDiscount),
     amountDiscount: numOrNull(amountRaw),
+    enableBaseShipping: boolOr(raw.enableBaseShipping, DEFAULT_CHECKOUT.enableBaseShipping),
+    enableLocalShipping: boolOr(raw.enableLocalShipping, DEFAULT_CHECKOUT.enableLocalShipping),
+    enableFreeShipping: boolOr(raw.enableFreeShipping, DEFAULT_CHECKOUT.enableFreeShipping),
+    baseShippingCost: numOrNull(raw.baseShippingCost) ?? DEFAULT_CHECKOUT.baseShippingCost,
+    localShippingCost: numOrNull(raw.localShippingCost) ?? DEFAULT_CHECKOUT.localShippingCost,
+    localZipCodes: String(raw.localZipCodes ?? DEFAULT_CHECKOUT.localZipCodes),
     shippingFreeText: String(raw.shippingFreeText ?? DEFAULT_CHECKOUT.shippingFreeText),
+    fallbackShippingText: String(
+      raw.fallbackShippingText ?? DEFAULT_CHECKOUT.fallbackShippingText
+    ),
+    fallbackShippingWarning: String(
+      raw.fallbackShippingWarning ?? DEFAULT_CHECKOUT.fallbackShippingWarning
+    ),
   };
 }
 
