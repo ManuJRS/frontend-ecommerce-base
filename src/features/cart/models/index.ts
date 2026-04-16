@@ -14,7 +14,20 @@ export interface CheckoutConfig {
   quantityDiscount: number | null;
   /** Umbral de subtotal para envío gratuito (modo `discountByAmount`). */
   amountDiscount: number | null;
+  enableBaseShipping: boolean;
+  enableLocalShipping: boolean;
+  enableFreeShipping: boolean;
+  /** Costo base de envío cuando no aplica envío gratis. */
+  baseShippingCost: number | null;
+  /** Costo de envío local cuando el prefijo del código postal coincide. */
+  localShippingCost: number | null;
+  /** Prefijos separados por coma para envío local. */
+  localZipCodes: string;
   shippingFreeText: string;
+  /** Texto cuando el envío no pudo calcularse en checkout. */
+  fallbackShippingText: string;
+  /** Advertencia mostrada cuando aplica fallback de envío. */
+  fallbackShippingWarning: string;
 }
 
 /** Badges del resumen (página carrito). */
@@ -47,4 +60,11 @@ export interface CartFullConfig {
   cartModal: CartModalConfig;
   checkoutConfig: CheckoutConfig;
   page: CartPageCopy;
+}
+
+/** Opción de método de envío en checkout (lista dinámica + costo). */
+export interface ShippingMethodOption {
+  id: string;
+  label: string;
+  cost: number;
 }
