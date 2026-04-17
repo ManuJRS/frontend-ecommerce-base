@@ -196,9 +196,18 @@ async function handleContinueToPayment() {
     }
 
     isFormValidAndSubmitted.value = true;
-  } catch (error) {
-    console.error('Error al preparar checkout:', error);
-    checkoutError.value = 'No se pudo inicializar el pago. Intenta nuevamente.';
+  } catch (error: any) {
+    isFormValidAndSubmitted.value = false;
+    const responseData = error?.response?.data;
+    // Buscamos el código y los detalles en la estructura estándar de Strapi v4 o plana
+    const details = responseData?.error?.details || responseData;
+    const code = details?.code || responseData?.error?.name;
+
+    if (code === 'INSUFFICIENT_STOCK') {
+      checkoutError.value = `Lo sentimos, no hay stock suficiente de "${details?.productName || 'este producto'}". Solo nos quedan ${details?.available} unidades disponibles.`;
+    } else {
+      checkoutError.value = 'No se pudo inicializar el pago. Intenta nuevamente.';
+    }
   } finally {
     isLoadingSecret.value = false;
   }
@@ -290,6 +299,14 @@ const handleCheckoutSubmit = async () => {
             :postal-code="checkoutForm.shipping.postalCode"
           />
 
+          <div
+            v-if="checkoutError"
+            class="text-red-600 bg-red-100 p-3 rounded-md mb-4 text-sm font-medium border border-red-200"
+            role="alert"
+          >
+            {{ checkoutError }}
+          </div>
+
           <div class="space-y-4">
             <button
               type="submit"
@@ -308,18 +325,19 @@ const handleCheckoutSubmit = async () => {
         </form>
 
         <div v-if="isFormValidAndSubmitted" class="space-y-6">
+          <div
+            v-if="checkoutError"
+            class="text-red-600 bg-red-100 p-3 rounded-md mb-4 text-sm font-medium border border-red-200"
+            role="alert"
+          >
+            {{ checkoutError }}
+          </div>
+
           <PaymentDetails
             v-if="clientSecret"
             ref="paymentComponentRef"
             :client-secret="clientSecret"
           />
-
-          <div
-            v-if="checkoutError"
-            class="text-error text-sm font-medium bg-error-container p-3 rounded-md"
-          >
-            {{ checkoutError }}
-          </div>
 
           <button
             type="button"
@@ -329,13 +347,6 @@ const handleCheckoutSubmit = async () => {
           >
             {{ isSubmitting ? 'Procesando...' : 'Complete Purchase' }}
           </button>
-        </div>
-
-        <div
-          v-if="checkoutError && !isFormValidAndSubmitted"
-          class="text-error text-sm font-medium bg-error-container p-3 rounded-md"
-        >
-          {{ checkoutError }}
         </div>
       </div>
 
