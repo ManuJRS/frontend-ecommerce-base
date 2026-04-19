@@ -26,8 +26,9 @@ interface CheckoutShippingForm {
   lastName: string;
   address: string;
   country: string;
-  phone: string;
+  state: string;
   city: string;
+  phone: string;
   postalCode: string;
   deliveryInstructions: string;
 }
@@ -60,8 +61,9 @@ const checkoutForm = reactive<CheckoutFormModel>({
     lastName: '',
     address: '',
     country: '',
-    phone: '',
+    state: '',
     city: '',
+    phone: '',
     postalCode: '',
     deliveryInstructions: '',
   },
@@ -110,7 +112,8 @@ const isCheckoutFormComplete = computed(() => {
     !!checkoutForm.shipping.country.trim() &&
     !!checkoutForm.shipping.phone.trim() &&
     !!checkoutForm.shipping.city.trim() &&
-    !!checkoutForm.shipping.postalCode.trim()
+    !!checkoutForm.shipping.postalCode.trim() &&
+    !!checkoutForm.shipping.state.trim()
   );
 });
 
