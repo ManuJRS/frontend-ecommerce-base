@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { computed, watch } from 'vue';
+import { MX_LOCATIONS } from '@/shared/constants/locations';
+
 interface CheckoutShippingModel {
   firstName: string;
   lastName: string;
   address: string;
   country: string;
-  phone: string;
+  state: string;
   city: string;
+  phone: string;
   postalCode: string;
   deliveryInstructions: string;
 }
@@ -16,6 +20,17 @@ const props = defineProps<{
 
 const model = defineModel<CheckoutShippingModel>({
   required: true,
+});
+
+model.value.country = 'México';
+
+const availableCities = computed(() => {
+  const selectedStateObj = MX_LOCATIONS.find((s) => s.state === model.value.state);
+  return selectedStateObj ? selectedStateObj.cities : [];
+});
+
+watch(() => model.value.state, () => {
+  model.value.city = '';
 });
 
 function sanitizeNameInput(value: string): string {
@@ -78,17 +93,66 @@ function sanitizePhoneInput(value: string): string {
           :disabled="props.disabled"
         />
       </div>
+    <div class="col-span-2 grid grid-cols-2 gap-6">
+      <div class="col-span-1">
+        <label class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1">
+          Country <span class="text-error">*</span>
+        </label>
+        <select
+          class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 disabled:opacity-60 appearance-none"
+          v-model="model.country"
+          disabled
+        >
+          <option value="México">México</option>
+        </select>
+      </div>
+
+      <div class="col-span-1">
+        <label class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1">
+          State <span class="text-error">*</span>
+        </label>
+        <select
+          class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed appearance-none"
+          v-model="model.state"
+          required
+          :disabled="props.disabled"
+        >
+          <option value="" disabled>Selecciona un estado</option>
+          <option v-for="item in MX_LOCATIONS" :key="item.state" :value="item.state">
+            {{ item.state }}
+          </option>
+        </select>
+      </div>
+
+      </div>
+
+      <div class="col-span-1">
+        <label class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1">
+          City <span class="text-error">*</span>
+        </label>
+        <select
+          class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed appearance-none"
+          v-model="model.city"
+          required
+          :disabled="props.disabled || !model.state"
+        >
+          <option value="" disabled>Selecciona una ciudad</option>
+          <option v-for="city in availableCities" :key="city" :value="city">
+            {{ city }}
+          </option>
+        </select>
+      </div>
       <div class="col-span-1">
         <label
           class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1"
         >
-          Country <span class="text-error">*</span>
+          Postal Code <span class="text-error">*</span>
         </label>
         <input
           class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
-          placeholder="Denmark"
+          placeholder="1264"
           type="text"
-          v-model="model.country"
+          v-model="model.postalCode"
           required
           :disabled="props.disabled"
         />
@@ -105,36 +169,6 @@ function sanitizePhoneInput(value: string): string {
           type="tel"
           v-model="model.phone"
           @input="model.phone = sanitizePhoneInput(model.phone)"
-          required
-          :disabled="props.disabled"
-        />
-      </div>
-      <div class="col-span-1">
-        <label
-          class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1"
-        >
-          City <span class="text-error">*</span>
-        </label>
-        <input
-          class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
-          placeholder="Copenhagen"
-          type="text"
-          v-model="model.city"
-          required
-          :disabled="props.disabled"
-        />
-      </div>
-      <div class="col-span-1">
-        <label
-          class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1"
-        >
-          Postal Code <span class="text-error">*</span>
-        </label>
-        <input
-          class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
-          placeholder="1264"
-          type="text"
-          v-model="model.postalCode"
           required
           :disabled="props.disabled"
         />
