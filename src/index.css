@@ -22,6 +22,113 @@
     .material-symbols-outlined {
         font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
     }
+
+    /* Descripción Markdown (Strapi Rich Text) en ficha de producto */
+    .product-markdown :is(h1, h2, h3, h4, h5, h6) {
+        @apply font-headline;
+    }
+
+    .product-markdown h1 {
+        @apply text-3xl font-extrabold text-primary tracking-tighter mt-8 mb-3 first:mt-0;
+    }
+
+    .product-markdown h2 {
+        @apply text-2xl font-bold text-primary tracking-tight mt-6 mb-2 first:mt-0;
+    }
+
+    .product-markdown h3 {
+        @apply text-xl font-bold text-on-surface mt-5 mb-2 first:mt-0;
+    }
+
+    .product-markdown h4 {
+        @apply text-lg font-semibold text-on-surface mt-4 mb-2 first:mt-0;
+    }
+
+    .product-markdown h5 {
+        @apply text-base font-semibold text-on-surface mt-4 mb-1.5 first:mt-0;
+    }
+
+    .product-markdown h6 {
+        @apply text-sm font-semibold uppercase tracking-widest text-on-surface-variant mt-4 mb-1.5 first:mt-0;
+    }
+
+    .product-markdown p {
+        @apply mb-3 last:mb-0;
+    }
+
+    .product-markdown :is(strong, b) {
+        @apply font-bold text-on-surface;
+    }
+
+    .product-markdown em {
+        @apply italic;
+    }
+
+    .product-markdown u {
+        @apply underline underline-offset-2;
+    }
+
+    .product-markdown :is(del, s, strike) {
+        @apply line-through text-on-surface-variant;
+    }
+
+    .product-markdown ul {
+        @apply list-disc pl-5 mb-3 space-y-1;
+    }
+
+    .product-markdown ol {
+        @apply list-decimal pl-5 mb-3 space-y-1;
+    }
+
+    .product-markdown li {
+        @apply pl-0.5;
+    }
+
+    .product-markdown blockquote {
+        @apply border-l-4 border-primary/40 pl-4 py-1 my-4 italic text-on-surface-variant;
+    }
+
+    .product-markdown a {
+        @apply text-primary underline underline-offset-2 hover:opacity-80;
+    }
+
+    .product-markdown hr {
+        @apply my-6 border-outline-variant;
+    }
+
+    .product-markdown pre {
+        @apply my-3 overflow-x-auto rounded-md bg-surface-container-low p-3 text-sm;
+    }
+
+    .product-markdown :not(pre) > code {
+        @apply rounded bg-surface-container-low px-1 py-0.5 text-sm font-mono;
+    }
+
+    .product-markdown pre code {
+        @apply bg-transparent p-0;
+    }
+
+    .product-markdown .product-markdown-empty {
+        @apply text-on-surface-variant;
+    }
+
+    /* Tarjeta de rejilla: mismo render Markdown que la ficha, tipografía compacta */
+    .product-markdown--grid {
+        @apply leading-snug;
+    }
+
+    .product-markdown--grid :where(h1, h2, h3, h4, h5, h6) {
+        @apply text-xs font-bold text-on-surface mt-1.5 mb-0.5 first:mt-0;
+    }
+
+    .product-markdown--grid p {
+        @apply mb-1 last:mb-0;
+    }
+
+    .product-markdown--grid ul,
+    .product-markdown--grid ol {
+        @apply mb-1 mt-0;
+    }
 }
 
 @layer utilities {

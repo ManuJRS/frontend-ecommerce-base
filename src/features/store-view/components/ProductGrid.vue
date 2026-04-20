@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
+import { RouterLink } from 'vue-router';
 import { api } from '@/core/api';
 import qs from 'qs';
 import type { ProductGridBlock } from '../models';
 import { useStoreViewStore } from '../stores/storeView.store';
 import type { AppliedProductFilters } from '../stores/storeView.store';
 import { useCartStore } from '@/features/cart/stores/cart.store';
+import { getProductDescriptionHtmlExcerpt } from '@/features/products/utils/renderProductMarkdown';
 
 const props = defineProps<{
   block: ProductGridBlock;
@@ -19,6 +21,13 @@ const cartStore = useCartStore();
 function addToCart(product: Record<string, unknown>) {
   if (isOutOfStock(product)) return;
   cartStore.addProduct(product);
+}
+
+/** Ruta de ficha de producto (`/tienda/:slug`); vacío si no hay slug en Strapi. */
+function productDetailTo(product: Record<string, unknown>): string {
+  const slug = product?.slug;
+  if (slug != null && String(slug).trim() !== '') return `/tienda/${String(slug).trim()}`;
+  return '';
 }
 
 function effectivePrice(p: any): number {
@@ -188,18 +197,25 @@ onMounted(async () => {
             v-if="product.images && product.images.length > 0"
             :src="product.images[0].url"
             :alt="product.name"
-            class="h-full w-full object-cover transition-transform duration-500"
+            class="relative z-0 h-full w-full object-cover transition-transform duration-500"
             :class="
               isOutOfStock(product)
                 ? 'grayscale'
                 : 'group-hover:scale-105'
             "
           />
-          <div v-else class="w-full h-full flex items-center justify-center text-gray-400 text-sm bg-gray-100">
+          <div v-else class="relative z-0 w-full h-full flex items-center justify-center text-gray-400 text-sm bg-gray-100">
             Sin Imagen
           </div>
 
-          <div class="flex flex-col gap-2 absolute bottom-4 right-4 items-end">
+          <RouterLink
+            v-if="productDetailTo(product)"
+            :to="productDetailTo(product)"
+            class="absolute inset-0 z-[5]"
+            :aria-label="`Ver producto: ${product.name}`"
+          />
+
+          <div class="flex flex-col gap-2 absolute bottom-4 right-4 z-[6] items-end pointer-events-none">
           <div
             v-if="product.newProduct"
             class="flex items-center gap-1.5 bg-white/90 backdrop-blur-sm px-2 py-1 shadow-sm opacity-100 group-hover:opacity-0 transition-opacity duration-300"
@@ -219,7 +235,7 @@ onMounted(async () => {
           <button
             type="button"
             :disabled="isOutOfStock(product)"
-            class="absolute bottom-4 left-4 right-4 py-4 text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300"
+            class="pointer-events-auto absolute bottom-4 left-4 right-4 z-20 py-4 text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300"
             :class="
               isOutOfStock(product)
                 ? 'translate-y-0 cursor-not-allowed bg-on-surface-variant/30 text-on-surface-variant opacity-100'
@@ -229,7 +245,7 @@ onMounted(async () => {
           >
             {{ isOutOfStock(product) ? 'Agotado' : 'Add to Cart' }}
           </button>
-          <div class="absolute top-4 left-4 z-10 flex flex-col gap-1 items-start pointer-events-none">
+          <div class="absolute top-4 left-4 z-[6] flex flex-col gap-1 items-start pointer-events-none">
             <div v-if="block.showDiscountBadge">
               <div
                 v-if="product.discountPercentage && product.discountPercentage > 0"
@@ -273,7 +289,7 @@ onMounted(async () => {
             v-if="block.showFavIcon"
             type="button"
             :disabled="isOutOfStock(product)"
-            class="absolute top-4 right-4 transition-all duration-300 group/fav disabled:cursor-not-allowed disabled:opacity-40"
+            class="pointer-events-auto absolute top-4 right-4 z-20 transition-all duration-300 group/fav disabled:cursor-not-allowed disabled:opacity-40"
           >
             <span
               class="material-symbols-outlined text-sm text-primary transition-transform group-hover/fav:scale-110"
@@ -283,15 +299,20 @@ onMounted(async () => {
           </button>
         </div>
 
-        <div class="space-y-1" :class="isOutOfStock(product) ? 'opacity-70' : ''">
-          <div class="flex justify-between items-start">
+        <component
+          :is="productDetailTo(product) ? RouterLink : 'div'"
+          v-bind="productDetailTo(product) ? { to: productDetailTo(product) } : {}"
+          class="space-y-1 block"
+          :class="isOutOfStock(product) ? 'opacity-70' : ''"
+        >
+          <div class="flex justify-between items-start gap-2">
             <h4
               class="text-sm font-bold tracking-tight"
               :class="isOutOfStock(product) ? 'text-on-surface-variant' : ''"
             >
               {{ product.name }}
             </h4>
-            <div class="flex gap-2">
+            <div class="flex shrink-0 gap-2">
                 <span
                   :class="{
                     'text-sm font-medium': true,
@@ -309,7 +330,11 @@ onMounted(async () => {
           <p v-if="block.showCategory" class="text-xs text-on-surface-variant">
             {{ product.categories && product.categories.length > 0 ? product.categories[0].name : 'Uncategorized' }}
           </p>
-          <p v-if="block.showDescription" class="text-xs text-on-surface-variant">{{ product.description || 'No description added' }}</p>
+          <div
+            v-if="block.showDescription"
+            class="product-markdown product-markdown--grid text-xs text-on-surface-variant break-words"
+            v-html="getProductDescriptionHtmlExcerpt(product.description, 120)"
+          />
           
           <div v-if="block.showCalification" class="flex gap-0.5 pt-2">
             <span class="material-symbols-outlined text-[10px]" style="font-variation-settings: 'FILL' 1;">star</span>
@@ -318,7 +343,7 @@ onMounted(async () => {
             <span class="material-symbols-outlined text-[10px]" style="font-variation-settings: 'FILL' 1;">star</span>
             <span class="material-symbols-outlined text-[10px]" style="font-variation-settings: 'FILL' 0;">star</span>
           </div>
-        </div>
+        </component>
       </div>
     </div>
 
