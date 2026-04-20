@@ -5,12 +5,19 @@ const HomePage = () => import('@/features/home/views/HomePage.vue');
 const SlugEntryView = () => import('@/features/routing/views/SlugEntryView.vue');
 const CheckoutPage = () => import('@/features/checkout/views/CheckoutPage.vue');
 const CheckoutSuccessPage = () => import('@/features/checkout/views/CheckoutSuccess.vue');
+const ProductView = () => import('@/features/products/views/ProductView.vue');
 
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
     name: 'Home',
     component: HomePage,
+  },
+  {
+    /** `slug` del producto en Strapi (coincide con el campo `slug`). */
+    path: '/tienda/:slug',
+    name: 'Product',
+    component: ProductView,
   },
   {
     path: '/checkout/success',
@@ -23,9 +30,6 @@ const routes: Array<RouteRecordRaw> = [
     component: CheckoutPage,
   },
   {
-    /**
-     * Página de tienda (`StoreViewPage`) o carrito (`CartViewPage`) según `slug` en `cart-config`.
-     */
     path: '/:slug',
     name: 'DynamicStoreView',
     component: SlugEntryView,
