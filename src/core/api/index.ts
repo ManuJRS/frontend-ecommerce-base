@@ -16,6 +16,7 @@ export const api = axios.create({
 export interface PaymentIntentItemPayload {
   documentId: string;
   quantity: number;
+  price: number;
 }
 
 export interface PaymentIntentResponse {
