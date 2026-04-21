@@ -1,6 +1,12 @@
 import { api } from '@/core/api';
 import qs from 'qs';
-import type { StrapiCategory, StrapiProduct, StrapiProductImage } from '../models';
+import type {
+  StrapiCategory,
+  StrapiProduct,
+  StrapiProductImage,
+  StrapiProductVariant,
+  StrapiVariantAttribute,
+} from '../models';
 
 /** Convierte relaciones Strapi `{ data: [...] }` al array plano usado en el front. */
 function unwrapEntry(entry: {
@@ -39,11 +45,47 @@ function normalizeCategories(raw: unknown): StrapiCategory[] {
   );
 }
 
+function normalizeAttributeArray(raw: unknown): StrapiVariantAttribute[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item: unknown) => {
+      const row = item as Record<string, unknown>;
+      return {
+        name: row.name != null ? String(row.name).trim() : '',
+        value: row.value != null ? String(row.value).trim() : '',
+      };
+    })
+    .filter((a) => a.name && a.value);
+}
+
+function normalizeVariants(raw: unknown): StrapiProductVariant[] {
+  const relation = raw as { data?: unknown } | undefined;
+  const list = Array.isArray(raw)
+    ? raw
+    : relation?.data != null
+      ? Array.isArray(relation.data)
+        ? relation.data
+        : [relation.data]
+      : [];
+
+  return list.map((item) => {
+    const variantData = unwrapEntry(item as { id?: number; attributes?: Record<string, unknown> }) as
+      | StrapiProductVariant
+      | (StrapiProductVariant & { images?: unknown; attribute?: unknown });
+    return {
+      ...variantData,
+      attribute: normalizeAttributeArray(variantData.attribute),
+      images: normalizeImages(variantData.images),
+    };
+  });
+}
+
 export function normalizeStrapiProduct(raw: StrapiProduct): StrapiProduct {
   return {
     ...raw,
     images: normalizeImages(raw.images as unknown),
     categories: normalizeCategories(raw.categories as unknown),
+    variants: normalizeVariants(raw.variants as unknown),
   };
 }
 
@@ -53,18 +95,24 @@ export function normalizeStrapiProduct(raw: StrapiProduct): StrapiProduct {
 export async function fetchProductBySlug(slug: string): Promise<StrapiProduct | null> {
   const query = qs.stringify(
     {
-      filters: {
-        slug: { $eq: slug },
+      filters: { slug: { $eq: slug } },
+      populate: {
+        images: { populate: '*' },
+        categories: { populate: '*' },
+        variants: {
+          populate: {
+            attribute: true, 
+            images: true
+          }
+        }
       },
-      populate: '*',
       pagination: { limit: 1 },
     },
     { encodeValuesOnly: true }
   );
 
   const response = await api.get<{ data: StrapiProduct[] }>(`/products?${query}`);
-  const list = response.data.data ?? [];
-  const first = list[0];
+  const first = response.data.data?.[0];
   if (!first) return null;
   return normalizeStrapiProduct(first);
 }

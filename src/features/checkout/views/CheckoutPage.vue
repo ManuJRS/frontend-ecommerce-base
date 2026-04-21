@@ -73,7 +73,6 @@ const cartConfig = useCartConfigStore();
 const { items, subtotal } = storeToRefs(cart);
 const { checkoutCopy, pageCopy } = storeToRefs(cartConfig);
 
-/** Sincronizado con `ShippingMethodSection` (método elegido y costo). */
 const selectedShippingMethod = ref<ShippingMethodOption | null>(null);
 
 const shippingValue = computed(() => {
@@ -117,16 +116,40 @@ const isCheckoutFormComplete = computed(() => {
   );
 });
 
+/** Precio unitario para el backend: `variantPriceWithDiscount` si viene de Strapi, si no el efectivo del carrito. */
+function resolvePaymentIntentUnitPrice(product: Record<string, unknown>): number {
+  const vpd = product.variantPriceWithDiscount;
+  if (vpd != null && vpd !== '' && !Number.isNaN(Number(vpd))) {
+    return Number(vpd);
+  }
+  const d = product.discountedPrice;
+  if (d != null && d !== '' && !Number.isNaN(Number(d))) {
+    return Number(d);
+  }
+  const pr = product.price;
+  return pr != null && pr !== '' ? Number(pr) || 0 : 0;
+}
+
 function mapCartItemsToPaymentIntentPayload(): PaymentIntentItemPayload[] {
   return items.value.map((line) => {
-    const documentId = line.product.documentId;
-    if (typeof documentId !== 'string' || !documentId.trim()) {
-      throw new Error('Hay productos sin documentId válido para procesar el pago');
+    const p = line.product;
+    const variantIdRaw = p.variantDocumentId || p.documentId;
+
+    const productVariantId =
+      typeof variantIdRaw === 'string'
+        ? variantIdRaw.trim()
+        : variantIdRaw != null
+          ? String(variantIdRaw).trim()
+          : '';
+
+    if (!productVariantId) {
+      throw new Error('Hay productos sin variante o documentId válido para procesar el pago');
     }
 
     return {
-      documentId,
+      documentId: productVariantId,
       quantity: line.quantity,
+      price: resolvePaymentIntentUnitPrice(p),
     };
   });
 }
