@@ -18,9 +18,79 @@ const isLoadingProducts = ref(false);
 const store = useStoreViewStore();
 const cartStore = useCartStore();
 
+function hasVariantOptions(product: Record<string, unknown>): boolean {
+  const v = product.variants as unknown[] | undefined;
+  return Array.isArray(v) && v.length > 0;
+}
+
+/** Sin esto, el carrito agrupa por `id` del producto padre y solo cuenta la primera variante. */
+function needsVariantSelection(product: Record<string, unknown>): boolean {
+  if (!hasVariantOptions(product)) return false;
+  return product._activeVariantId == null && product._selectedVariant == null;
+}
+
 function addToCart(product: Record<string, unknown>) {
+  if (needsVariantSelection(product)) return;
   if (isOutOfStock(product)) return;
-  cartStore.addProduct(product);
+  cartStore.addProduct(buildCartLineProduct(product));
+}
+
+/** Línea de carrito alineada con ProductView: `id` único por variante + `documentId` de la variante. */
+function buildCartLineProduct(product: Record<string, unknown>): Record<string, unknown> {
+  if (!hasVariantOptions(product)) {
+    return JSON.parse(JSON.stringify(product)) as Record<string, unknown>;
+  }
+  const variants = product.variants as Record<string, unknown>[];
+  const variant =
+    (product._selectedVariant as Record<string, unknown> | undefined) ??
+    variants.find((x) => x.id === product._activeVariantId);
+  if (!variant) {
+    return JSON.parse(JSON.stringify(product)) as Record<string, unknown>;
+  }
+
+  const parentId = product.id as number;
+  const parentDocId = product.documentId as string | undefined;
+  const vDoc = variant.documentId ?? variant.id;
+  const unitFinal =
+    variant.variantPriceWithDiscount != null && variant.variantPriceWithDiscount !== ''
+      ? Number(variant.variantPriceWithDiscount)
+      : variant.price != null
+        ? Number(variant.price)
+        : Number(product.price) || 0;
+
+  return {
+    ...JSON.parse(JSON.stringify(product)),
+    id: `${parentId}-${String(vDoc ?? 'variant')}`,
+    variantId: variant.documentId != null ? String(variant.documentId) : String(variant.id ?? ''),
+    documentId: variant.documentId ?? parentDocId,
+    name: variantOnlyTitle(variant) || String(product.name ?? ''),
+    sku: variant.variantSku ?? variant.sku ?? product.sku,
+    variantSku: variant.variantSku ?? variant.sku,
+    price: variant.price ?? product.price,
+    discountedPrice: unitFinal,
+    stock: variant.stock,
+    discountPercentage: variant.variantDiscount ?? product.discountPercentage,
+    images:
+      Array.isArray(variant.images) && (variant.images as unknown[]).length > 0
+        ? variant.images
+        : product.images,
+    parentProductDocumentId: parentDocId,
+    variantName: variantOnlyTitle(variant) || String(product.name ?? ''),
+    variantPriceWithDiscount:
+      variant.variantPriceWithDiscount != null && variant.variantPriceWithDiscount !== ''
+        ? Number(variant.variantPriceWithDiscount)
+        : undefined,
+  };
+}
+
+function addToCartButtonLabel(product: Record<string, unknown>): string {
+  if (needsVariantSelection(product)) return 'Selecciona una variante';
+  if (isOutOfStock(product)) return 'Agotado';
+  return 'Add to Cart';
+}
+
+function addToCartDisabled(product: Record<string, unknown>): boolean {
+  return needsVariantSelection(product) || isOutOfStock(product);
 }
 
 /** Ruta de ficha de producto (`/tienda/:slug`); vacío si no hay slug en Strapi. */
@@ -30,16 +100,42 @@ function productDetailTo(product: Record<string, unknown>): string {
   return '';
 }
 
-function effectivePrice(p: any): number {
+/** Precio efectivo leyendo `price` / `discountedPrice` actuales (puede mutar al elegir variante). */
+function effectivePriceFromFields(p: any): number {
   const d = p.discountedPrice;
   if (d != null && d !== '' && !Number.isNaN(Number(d))) return Number(d);
   const pr = p.price;
   return pr != null && pr !== '' ? Number(pr) || 0 : 0;
 }
 
+/**
+ * Precio congelado al cargar la lista (orden estable; filtros por rango no saltan al cambiar variante).
+ * Si no hubo captura, cae al cálculo por campos actuales.
+ */
+function baselineEffectivePrice(p: any): number {
+  const raw = p._gridSortEffectivePrice;
+  if (raw != null && raw !== '' && Number.isFinite(Number(raw))) return Number(raw);
+  return effectivePriceFromFields(p);
+}
+
+function captureProductBaselines(p: Record<string, unknown>) {
+  if (p._gridSortBaselineCaptured) return;
+  p._gridSortEffectivePrice = effectivePriceFromFields(p);
+  if (p._originalName == null && p.name != null) {
+    p._originalName = String(p.name);
+  }
+  p._gridSortBaselineCaptured = true;
+}
+
+function captureBaselinesForList(products: unknown[]) {
+  for (const item of products) {
+    captureProductBaselines(item as Record<string, unknown>);
+  }
+}
+
 function productMatchesFilters(p: any, f: AppliedProductFilters): boolean {
   if (f.priceRange) {
-    const price = effectivePrice(p);
+    const price = baselineEffectivePrice(p);
     if (price < f.priceRange.min || price > f.priceRange.max) return false;
   }
 
@@ -60,9 +156,17 @@ function productMatchesFilters(p: any, f: AppliedProductFilters): boolean {
 function sortList(list: any[], sortBy: string): any[] {
   const sorted = [...list];
   if (sortBy === 'lowest') {
-    sorted.sort((a, b) => effectivePrice(a) - effectivePrice(b));
+    sorted.sort((a, b) => {
+      const diff = baselineEffectivePrice(a) - baselineEffectivePrice(b);
+      if (diff !== 0) return diff;
+      return (a.id || 0) - (b.id || 0);
+    });
   } else if (sortBy === 'highest') {
-    sorted.sort((a, b) => effectivePrice(b) - effectivePrice(a));
+    sorted.sort((a, b) => {
+      const diff = baselineEffectivePrice(b) - baselineEffectivePrice(a);
+      if (diff !== 0) return diff;
+      return (a.id || 0) - (b.id || 0);
+    });
   } else if (sortBy === 'newest') {
     sorted.sort((a, b) => (b.id || 0) - (a.id || 0));
   } else if (sortBy === 'best-sellers') {
@@ -137,10 +241,12 @@ function isOutOfStock(product: any): boolean {
 onMounted(async () => {
   if (props.block.dataSource === 'manual_selection') {
     rawProducts.value = [...(props.block.manualProducts || [])];
+    captureBaselinesForList(rawProducts.value);
   } else if (props.block.dataSource === 'by_category') {
     if (props.block.category && props.block.category.products) {
       const limit = props.block.itemsLimit || 12;
       rawProducts.value = props.block.category.products.slice(0, limit);
+      captureBaselinesForList(rawProducts.value);
     } else {
       console.warn('La categoría no tiene productos asignados.');
       rawProducts.value = [];
@@ -149,16 +255,24 @@ onMounted(async () => {
     isLoadingProducts.value = true;
     try {
       const queryObj: any = {
-        populate: ['images', 'categories'],
-        pagination: {
-          limit: props.block.itemsLimit || 12,
+        populate: {
+          images: { populate: '*' },
+          categories: { populate: '*' },
+          variants: {
+            populate: {
+              attribute: true,
+              images: true
+            }
+          }
         },
+        pagination: { limit: props.block.itemsLimit || 12 },
         sort: ['createdAt:desc'],
       };
 
       const query = qs.stringify(queryObj, { encodeValuesOnly: true });
       const response = await api.get(`/products?${query}`);
       rawProducts.value = response.data.data || [];
+      captureBaselinesForList(rawProducts.value);
     } catch (error) {
       console.error('Error obteniendo todos los productos:', error);
     } finally {
@@ -166,6 +280,97 @@ onMounted(async () => {
     }
   }
 });
+
+/** Nombre solo de la variante (sin prefijo del producto padre). */
+function variantOnlyTitle(variant: Record<string, unknown> | null | undefined): string {
+  if (!variant) return '';
+  const vn = variant.variantName;
+  if (vn != null && String(vn).trim() !== '') return String(vn).trim();
+  const an = variant.attrName;
+  if (an != null && String(an).trim() !== '') return String(an).trim();
+  const attrs = variant.attribute as { name?: string; value?: string }[] | undefined;
+  if (Array.isArray(attrs) && attrs.length > 0) {
+    const parts = attrs
+      .map((a) => {
+        if (a?.name != null && String(a.name).trim() !== '' && a?.value != null && String(a.value).trim() !== '') {
+          return `${String(a.name).trim()}: ${String(a.value).trim()}`;
+        }
+        return a?.value != null ? String(a.value).trim() : '';
+      })
+      .filter((s) => s !== '');
+    if (parts.length) return parts.join(' · ');
+  }
+  return '';
+}
+
+/** Título en grid: nombre de variante solo tras elegir chip; si no, nombre base del producto. */
+function gridProductTitle(product: Record<string, unknown>): string {
+  const variants = product.variants as Record<string, unknown>[] | undefined;
+  if (variants && Array.isArray(variants) && variants.length > 0) {
+    let v = product._selectedVariant as Record<string, unknown> | undefined;
+    if (!v && product._activeVariantId != null) {
+      v = variants.find((x) => x.id === product._activeVariantId);
+    }
+    if (v) {
+      const t = variantOnlyTitle(v);
+      if (t) return t;
+    }
+  }
+  if (product._originalName != null && String(product._originalName).trim() !== '') {
+    return String(product._originalName).trim();
+  }
+  return product.name != null ? String(product.name) : '';
+}
+
+/** * Cambia los datos visuales del producto por los de la variante seleccionada
+ */
+function selectVariant(product: any, variant: any) {
+  // 1. Guardamos el nombre e imágenes originales para poder hacer "swaps" limpios
+  if (!product._originalName) {
+    product._originalName = product.name;
+  }
+  if (!product._originalImages) {
+    product._originalImages = [...(product.images || [])];
+  }
+
+  // 2. Nombre visible y carrito: solo el nombre de la variante
+  const only = variantOnlyTitle(variant as Record<string, unknown>);
+  product.name = only || product._originalName;
+
+  // 3. Actualización de datos numéricos y de stock
+  product._selectedVariant = variant;
+  product.price = variant.price;
+  product.discountedPrice = variant.variantPriceWithDiscount;
+  product.variantSku = variant.variantSku;
+  product.stock = variant.stock;
+  product.discountPercentage = variant.variantDiscount; // Para que los badges de % se actualicen
+  
+  // 4. Cambio de Imagen: Si la variante tiene fotos, la ponemos de primera
+  if (variant.images && variant.images.length > 0) {
+    product.images = [variant.images[0], ...product._originalImages];
+  } else {
+    product.images = [...product._originalImages];
+  }
+  
+  // 5. Estado de selección para los botones (UI)
+  product._activeVariantId = variant.id;
+}
+
+function getVariantLabel(variant: any): string {
+  // 1. Intentamos sacar el valor del componente 'attribute' (ej: 'M', 'Rojo')
+  if (variant.attribute && Array.isArray(variant.attribute) && variant.attribute.length > 0) {
+    // Tomamos el valor del primer atributo
+    return variant.attribute[0].value; 
+  }
+
+  // 2. Si no hay componente, intentamos con 'variantName' 
+  // (Pero solo si no es igual al nombre del producto)
+  if (variant.variantName) {
+    return variant.variantName;
+  }
+
+  return 'Var';
+}
 </script>
 
 <template>
@@ -190,13 +395,13 @@ onMounted(async () => {
         :class="isOutOfStock(product) ? 'cursor-not-allowed' : 'cursor-pointer'"
       >
         <div
-          class="relative mb-6 aspect-[3/4] overflow-hidden bg-surface-container-low transition-opacity duration-300"
+          class="group/image relative mb-6 aspect-[3/4] overflow-hidden bg-surface-container-low transition-opacity duration-300"
           :class="isOutOfStock(product) ? 'opacity-60' : ''"
         >
           <img
             v-if="product.images && product.images.length > 0"
             :src="product.images[0].url"
-            :alt="product.name"
+            :alt="gridProductTitle(product)"
             class="relative z-0 h-full w-full object-cover transition-transform duration-500"
             :class="
               isOutOfStock(product)
@@ -212,7 +417,7 @@ onMounted(async () => {
             v-if="productDetailTo(product)"
             :to="productDetailTo(product)"
             class="absolute inset-0 z-[5]"
-            :aria-label="`Ver producto: ${product.name}`"
+            :aria-label="`Ver producto: ${gridProductTitle(product)}`"
           />
 
           <div class="flex flex-col gap-2 absolute bottom-4 right-4 z-[6] items-end pointer-events-none">
@@ -234,16 +439,16 @@ onMounted(async () => {
           </div>
           <button
             type="button"
-            :disabled="isOutOfStock(product)"
-            class="pointer-events-auto absolute bottom-4 left-4 right-4 z-20 py-4 text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300"
+            :disabled="addToCartDisabled(product)"
+            class="absolute bottom-4 left-4 right-4 z-20 py-4 text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300 translate-y-12 opacity-0 pointer-events-none group-hover/image:translate-y-0 group-hover/image:opacity-100 group-hover/image:pointer-events-auto"
             :class="
-              isOutOfStock(product)
-                ? 'translate-y-0 cursor-not-allowed bg-on-surface-variant/30 text-on-surface-variant opacity-100'
-                : 'translate-y-12 bg-primary text-on-primary opacity-0 group-hover:translate-y-0 group-hover:opacity-100'
+              addToCartDisabled(product)
+                ? 'cursor-not-allowed bg-on-surface-variant/30 text-white'
+                : 'bg-primary text-on-primary'
             "
             @click.stop="addToCart(product)"
           >
-            {{ isOutOfStock(product) ? 'Agotado' : 'Add to Cart' }}
+            {{ addToCartButtonLabel(product) }}
           </button>
           <div class="absolute top-4 left-4 z-[6] flex flex-col gap-1 items-start pointer-events-none">
             <div v-if="block.showDiscountBadge">
@@ -310,7 +515,7 @@ onMounted(async () => {
               class="text-sm font-bold tracking-tight"
               :class="isOutOfStock(product) ? 'text-on-surface-variant' : ''"
             >
-              {{ product.name }}
+              {{ gridProductTitle(product) }}
             </h4>
             <div class="flex shrink-0 gap-2">
                 <span
@@ -344,6 +549,23 @@ onMounted(async () => {
             <span class="material-symbols-outlined text-[10px]" style="font-variation-settings: 'FILL' 0;">star</span>
           </div>
         </component>
+        <div v-if="product.variants && product.variants.length > 0" class="flex flex-wrap gap-2 pt-4">
+          <button
+            v-for="variant in product.variants.slice(0, 3)"
+            :key="variant.id"
+            type="button"
+            @click.stop="selectVariant(product, variant)"
+            class="px-2 py-1 text-[10px] font-bold border transition-all duration-200 uppercase tracking-wider hover:cursor-pointer"
+            :class="product._activeVariantId === variant.id 
+              ? 'border-primary bg-primary text-on-primary' 
+              : 'border-outline-variant text-on-surface-variant hover:border-primary bg-white'"
+          >
+            {{ getVariantLabel(variant) }}
+          </button>
+          <span v-if="product.variants.length > 3" class="text-[10px] text-on-surface-variant/60 self-center font-medium">
+            +{{ product.variants.length - 3 }}
+          </span>
+        </div>
       </div>
     </div>
 

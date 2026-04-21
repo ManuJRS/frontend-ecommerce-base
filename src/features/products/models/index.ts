@@ -14,6 +14,29 @@ export interface StrapiProductImage {
   name?: string;
 }
 
+/** Componente repetible en ProductVariant (Strapi): name = tipo, value = opción. */
+export interface StrapiVariantAttribute {
+  name?: string;
+  value?: string;
+}
+
+export interface StrapiProductVariant {
+  id?: number;
+  documentId?: string;
+  sku?: string;
+  variantSku?: string;
+  productName?: string;
+  variantName?: string;
+  variantDescription?: string | null;
+  variantDiscount?: number | null;
+  /** Precio final con descuento de variante (Strapi), si existe. */
+  variantPriceWithDiscount?: number | null;
+  price?: number | null;
+  stock?: number | null;
+  attribute?: StrapiVariantAttribute[];
+  images?: StrapiProductImage[];
+}
+
 export interface StrapiProduct {
   id: number;
   documentId: string;
@@ -32,4 +55,5 @@ export interface StrapiProduct {
   showRelatedProducts?: boolean | null;
   images?: StrapiProductImage[];
   categories?: StrapiCategory[];
+  variants?: StrapiProductVariant[];
 }
