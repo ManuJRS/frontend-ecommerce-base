@@ -116,7 +116,6 @@ const isCheckoutFormComplete = computed(() => {
   );
 });
 
-/** Precio unitario para el backend: `variantPriceWithDiscount` si viene de Strapi, si no el efectivo del carrito. */
 function resolvePaymentIntentUnitPrice(product: Record<string, unknown>): number {
   const vpd = product.variantPriceWithDiscount;
   if (vpd != null && vpd !== '' && !Number.isNaN(Number(vpd))) {
@@ -298,7 +297,7 @@ const handleCheckoutSubmit = async () => {
             "
           >
             <span>01</span>
-            <span>Information</span>
+            <span>información</span>
           </div>
           <div class="w-8 h-px bg-outline-variant/30" aria-hidden="true" />
           <div
@@ -308,7 +307,7 @@ const handleCheckoutSubmit = async () => {
             "
           >
             <span>02</span>
-            <span>Payment</span>
+            <span>Pago</span>
           </div>
         </nav>
 
@@ -390,7 +389,14 @@ const handleCheckoutSubmit = async () => {
             :is-fallback-shipping="isFallbackShipping"
             :fallback-shipping-warning="checkoutCopy?.fallbackShippingWarning"
           />
-          <CheckoutTrustIndicators />
+          <div class="bg-surface-container-lowest p-6 sm:p-8 rounded-xl shadow-sm space-y-6 sm:space-y-8">
+            <CheckoutTrustIndicators />
+            <div v-if="pageCopy?.summaryMessage" class="pt-4 border-t border-outline-variant/10">
+              <p class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 leading-relaxed">
+                {{ pageCopy.summaryMessage }}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

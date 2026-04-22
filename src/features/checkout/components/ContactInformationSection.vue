@@ -38,18 +38,18 @@ const hasEmailFormatError = computed(() => {
       <span class="mx-2">/</span>
       <span class="text-on-surface">Checkout</span>
     </nav>
-    <h2 class="text-2xl font-bold tracking-tight mb-8 text-primary">Contact Information</h2>
+    <h2 class="text-2xl font-bold tracking-tight mb-8 text-primary">Información de contacto</h2>
     <div class="space-y-6">
       <div class="group">
         <label
           class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1"
         >
-          Email Address <span class="text-error">*</span>
+          Correo electrónico <span class="text-error">*</span>
         </label>
         <input
           class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
           :class="hasEmailFormatError ? 'ring-1 ring-error/60' : ''"
-          placeholder="curator@atelier.com"
+          placeholder="correo@correo.com"
           type="email"
           v-model="model.email"
           required
@@ -69,7 +69,7 @@ const hasEmailFormatError = computed(() => {
           :disabled="props.disabled"
         />
         <label class="text-sm text-on-surface-variant" for="newsletter">
-          Keep me updated with new collections and editorials
+          Mantenerme actualizado con nuevos productos
         </label>
       </div>
     </div>

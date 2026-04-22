@@ -44,13 +44,13 @@ function sanitizePhoneInput(value: string): string {
 
 <template>
   <section>
-    <h2 class="text-2xl font-bold tracking-tight mb-8 text-primary">Shipping Address</h2>
+    <h2 class="text-2xl font-bold tracking-tight mb-8 text-primary">Dirección de envío</h2>
     <div class="grid grid-cols-2 gap-6">
       <div class="col-span-1">
         <label
           class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1"
         >
-          First Name <span class="text-error">*</span>
+          Nombres <span class="text-error">*</span>
         </label>
         <input
           class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -66,7 +66,7 @@ function sanitizePhoneInput(value: string): string {
         <label
           class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1"
         >
-          Last Name <span class="text-error">*</span>
+          Apellidos <span class="text-error">*</span>
         </label>
         <input
           class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -82,11 +82,11 @@ function sanitizePhoneInput(value: string): string {
         <label
           class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1"
         >
-          Address <span class="text-error">*</span>
+          Dirección <span class="text-error">*</span>
         </label>
         <input
           class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
-          placeholder="128 Artistry Lane, Suite 4"
+          placeholder="Calle 123, Colonia 123"
           type="text"
           v-model="model.address"
           required
@@ -96,7 +96,7 @@ function sanitizePhoneInput(value: string): string {
     <div class="col-span-2 grid grid-cols-2 gap-6">
       <div class="col-span-1">
         <label class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1">
-          Country <span class="text-error">*</span>
+          País <span class="text-error">*</span>
         </label>
         <select
           class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 disabled:opacity-60 appearance-none"
@@ -109,7 +109,7 @@ function sanitizePhoneInput(value: string): string {
 
       <div class="col-span-1">
         <label class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1">
-          State <span class="text-error">*</span>
+          Estado <span class="text-error">*</span>
         </label>
         <select
           class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed appearance-none"
@@ -128,7 +128,7 @@ function sanitizePhoneInput(value: string): string {
 
       <div class="col-span-1">
         <label class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1">
-          City <span class="text-error">*</span>
+          Ciudad <span class="text-error">*</span>
         </label>
         <select
           class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed appearance-none"
@@ -146,7 +146,7 @@ function sanitizePhoneInput(value: string): string {
         <label
           class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1"
         >
-          Postal Code <span class="text-error">*</span>
+          Código postal <span class="text-error">*</span>
         </label>
         <input
           class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -161,7 +161,7 @@ function sanitizePhoneInput(value: string): string {
         <label
           class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1"
         >
-          Phone <span class="text-error">*</span>
+          Teléfono <span class="text-error">*</span>
         </label>
         <input
           class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -177,7 +177,7 @@ function sanitizePhoneInput(value: string): string {
         <label
           class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1"
         >
-          Delivery Instructions (Optional)
+          Instrucciones de entrega (Opcional)
         </label>
         <textarea
           class="w-full bg-surface-container-highest border-none py-4 px-5 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all duration-300 min-h-28 resize-y disabled:opacity-60 disabled:cursor-not-allowed"
