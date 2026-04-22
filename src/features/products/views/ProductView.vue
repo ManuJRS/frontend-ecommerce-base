@@ -3,6 +3,7 @@ import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { useProduct } from '../composables/useProduct';
 import { useCartStore } from '@/features/cart/stores/cart.store';
+import { useFavoritesStore } from '@/features/favorites/store/favorites.store';
 import type { StrapiProduct, StrapiProductVariant } from '../models';
 import { renderProductDescriptionMarkdown } from '../utils/renderProductMarkdown';
 
@@ -22,6 +23,7 @@ const {
 } = useProduct();
 
 const cartStore = useCartStore();
+const favoritesStore = useFavoritesStore();
 const route = useRoute();
 
 const activeImageIndex = ref(0);
@@ -373,6 +375,10 @@ function addToCart(p: StrapiProduct) {
   cartStore.addProduct(p as unknown as Record<string, unknown>);
 }
 
+function handleFavoriteClick(p: StrapiProduct) {
+  favoritesStore.toggleFavorite(p as unknown as Record<string, unknown>);
+}
+
 function formatMoney(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -413,6 +419,26 @@ function formatMoney(n: number): string {
               Sin imagen
             </div>
             <div class="pointer-events-none absolute inset-0 z-[1] bg-black/5"></div>
+
+            <button
+              type="button"
+              class="pointer-events-auto absolute top-4 right-4 z-20 transition-all duration-300 group/fav"
+              aria-label="Agregar o quitar de favoritos"
+              @click.stop="handleFavoriteClick(product)"
+            >
+              <span
+                class="material-symbols-outlined text-sm transition-all duration-300"
+                :class="{
+                  'text-red-500 scale-110': favoritesStore.isFavorite(product.id),
+                  'text-primary hover:text-red-500/80': !favoritesStore.isFavorite(product.id),
+                }"
+                :style="{
+                  fontVariationSettings: favoritesStore.isFavorite(product.id) ? 'FILL 1' : 'FILL 0',
+                }"
+              >
+                favorite
+              </span>
+            </button>
 
             <div
               class="pointer-events-none absolute top-4 left-4 z-10 flex flex-col gap-1.5 items-start"
