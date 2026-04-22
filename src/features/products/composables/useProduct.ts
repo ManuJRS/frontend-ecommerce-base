@@ -3,7 +3,7 @@ import { useRoute } from 'vue-router';
 import type { StrapiProduct } from '../models';
 import {
   fetchProductBySlug,
-  fetchRelatedProductsByFirstCategory,
+  fetchRelatedProductsByCategories,
 } from '../services/product.service';
 import { resolveStrapiMediaUrl } from '@/shared/utils/strapiMedia';
 
@@ -86,10 +86,10 @@ export function useProduct() {
       }
       product.value = p;
 
-      const firstCatName = p.categories?.[0]?.name;
-      if (p.showRelatedProducts === true && firstCatName) {
-        relatedProducts.value = await fetchRelatedProductsByFirstCategory(
-          firstCatName,
+      const categoryNames = p.categories?.map(c => c.name).filter(Boolean) as string[];
+      if (p.showRelatedProducts === true && categoryNames?.length > 0) {
+        relatedProducts.value = await fetchRelatedProductsByCategories(
+          categoryNames,
           p.documentId,
           4
         );

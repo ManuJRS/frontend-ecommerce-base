@@ -90,6 +90,7 @@ onUnmounted(() => {
 
 <template>
   <Teleport to="body">
+    <transition ame="cart-slide">
     <div
       v-show="drawerOpen"
       class="fixed inset-0 z-[60] flex min-h-0 justify-end"
@@ -99,6 +100,7 @@ onUnmounted(() => {
     >
       <div
         class="absolute inset-0 bg-slate-950/40 backdrop-blur-sm transition-opacity duration-500"
+        :class="drawerOpen ? 'opacity-100' : 'opacity-0'"
         aria-hidden="true"
         @click="onBackdropClick"
       />
@@ -237,5 +239,25 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
+    </transition>
   </Teleport>
 </template>
+
+<style scoped>
+/* Animación del fondo (fade) y del panel (slide) */
+.cart-slide-enter-active,
+.cart-slide-leave-active {
+  transition: all 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.cart-slide-enter-from,
+.cart-slide-leave-to {
+  opacity: 0;
+}
+
+/* Para que el panel blanco se deslice */
+.cart-slide-enter-from .relative.flex,
+.cart-slide-leave-to .relative.flex {
+  transform: translateX(100%);
+}
+</style>
