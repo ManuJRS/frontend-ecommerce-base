@@ -136,7 +136,7 @@ const favoriteItems = computed(() => items.value as Record<string, unknown>[]);
     <section v-else class="py-20 text-center space-y-4">
       <p class="text-on-surface-variant">No tienes productos guardados en favoritos.</p>
       <RouterLink
-        to="/"
+        to="/tienda"
         class="inline-flex items-center justify-center px-6 py-3 bg-primary text-on-primary rounded-md text-sm font-semibold tracking-wide hover:opacity-90 transition-opacity"
       >
         Explorar productos

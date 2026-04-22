@@ -132,7 +132,7 @@ watch(
 
 <template>
   <section>
-    <h2 class="text-2xl font-bold tracking-tight mb-8 text-primary">Shipping Method</h2>
+    <h2 class="text-2xl font-bold tracking-tight mb-8 text-primary">Método de envío</h2>
     <label class="block">
       <span class="sr-only">Método de envío</span>
       <select
