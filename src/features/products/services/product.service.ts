@@ -121,17 +121,23 @@ export async function fetchProductBySlug(slug: string): Promise<StrapiProduct | 
  * Productos de la misma categoría (por nombre), excluyendo el actual.
  * Alineado con el filtro Strapi: categories por nombre + documentId distinto.
  */
-export async function fetchRelatedProductsByFirstCategory(
-  categoryName: string,
+export async function fetchRelatedProductsByCategories(
+  categoryName: string[],
   excludeDocumentId: string,
   limit = 4
 ): Promise<StrapiProduct[]> {
   const query = qs.stringify(
     {
-      populate: '*',
+      populate: {
+        images: true,
+        categories: true,
+        variants: {
+          populate: ['attribute', 'images']
+        }
+      },
       filters: {
         categories: {
-          name: { $eq: categoryName },
+          name: { $in: categoryName },
         },
         documentId: { $ne: excludeDocumentId },
       },

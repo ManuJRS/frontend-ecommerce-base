@@ -533,7 +533,7 @@ function getVariantLabel(variant: any): string {
             </div>
           </div>
           <p v-if="block.showCategory" class="text-xs text-on-surface-variant">
-            {{ product.categories && product.categories.length > 0 ? product.categories[0].name : 'Uncategorized' }}
+            {{ product.categories && product.categories.length > 0 ? product.categories[0].name : 'No categorizado' }}
           </p>
           <div
             v-if="block.showDescription"
