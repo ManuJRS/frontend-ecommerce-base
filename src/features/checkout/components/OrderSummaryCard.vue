@@ -50,14 +50,16 @@ function lineUnitTotal(line: CheckoutLineItem): number {
 </script>
 
 <template>
-  <div class="bg-surface-container-lowest p-10">
-    <h3 class="text-xl font-bold tracking-tight mb-8">Order Summary</h3>
+  <div class="bg-surface-container-lowest p-6 sm:p-8 rounded-xl shadow-sm space-y-6 sm:space-y-8">
+    <h3 class="text-xs uppercase tracking-[0.2em] font-bold text-on-surface-variant">
+      Resumen de la orden
+    </h3>
 
-    <div v-if="props.items.length === 0" class="text-sm text-on-surface-variant mb-10">
+    <div v-if="props.items.length === 0" class="text-sm text-on-surface-variant">
       Tu carrito está vacío.
     </div>
 
-    <div v-else class="space-y-8 mb-10">
+    <div v-else class="space-y-8">
       <div v-for="(line, index) in props.items" :key="`${line.product.id ?? 'noid'}-${index}`" class="flex gap-6">
         <div class="w-24 h-32 bg-surface-container flex-shrink-0">
           <img
@@ -78,34 +80,40 @@ function lineUnitTotal(line: CheckoutLineItem): number {
             </p>
             <p class="text-xs text-on-surface-variant mt-1">Cantidad: {{ line.quantity }}</p>
           </div>
-          <p class="font-semibold">${{ formatMoney(lineUnitTotal(line)) }}</p>
+          <p class="font-semibold tabular-nums">${{ formatMoney(lineUnitTotal(line)) }}</p>
         </div>
       </div>
     </div>
 
-    <div class="space-y-4 pt-8 border-t border-surface-container">
-      <div class="flex justify-between text-sm text-on-surface-variant">
+    <div class="space-y-4 border-b border-outline-variant/20 pb-8">
+      <div class="flex justify-between text-sm text-on-surface-variant gap-4">
         <span>{{ props.subtotalLabel ?? 'Subtotal' }}</span>
-        <span>${{ formatMoney(props.subtotal) }}</span>
+        <span class="tabular-nums">${{ formatMoney(props.subtotal) }}</span>
       </div>
       <div class="flex justify-between text-sm text-on-surface-variant gap-4">
         <span>{{ props.shippingLabel ?? 'Shipping' }}</span>
-        <span class="text-right text-on-secondary-container">{{ props.shippingValue }}</span>
+        <span class="text-right tabular-nums">{{ props.shippingValue }}</span>
       </div>
-      <div class="flex justify-between text-sm text-on-surface-variant">
+      <div class="flex justify-between text-sm text-on-surface-variant gap-4">
         <span>{{ props.taxLabel ?? 'Estimated Tax' }}</span>
-        <span>${{ formatMoney(props.estimatedTax) }}</span>
+        <span class="tabular-nums">${{ formatMoney(props.estimatedTax) }}</span>
       </div>
-      <div class="flex justify-between text-lg font-bold pt-4 text-primary">
-        <span>{{ props.totalLabel ?? 'Total' }}</span>
-        <span>${{ formatMoney(props.totalAfterTax) }}</span>
-      </div>
-      <p
-        v-if="props.isFallbackShipping && props.fallbackShippingWarning?.trim()"
-        class="mt-3 text-xs text-on-surface-variant/90 leading-relaxed border border-outline-variant/30 rounded-lg px-3 py-2 bg-surface-container-high/40"
-      >
-        {{ props.fallbackShippingWarning }}
-      </p>
     </div>
+
+    <div class="flex justify-between items-baseline gap-4">
+      <div class="flex justify-between text-lg font-bold w-full">
+        <span>{{ props.totalLabel ?? 'Total' }}</span>
+        <span class="text-2xl sm:text-3xl font-extrabold tracking-tighter tabular-nums text-on-surface">
+          ${{ formatMoney(props.totalAfterTax) }}
+        </span>
+      </div>
+    </div>
+
+    <p
+      v-if="props.isFallbackShipping && props.fallbackShippingWarning?.trim()"
+      class="text-xs text-on-surface-variant/90 leading-relaxed border border-outline-variant/30 rounded-lg px-3 py-2 bg-surface-container-high/40"
+    >
+      {{ props.fallbackShippingWarning }}
+    </p>
   </div>
 </template>
