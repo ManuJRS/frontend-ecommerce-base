@@ -6,6 +6,7 @@ const SlugEntryView = () => import('@/features/routing/views/SlugEntryView.vue')
 const CheckoutPage = () => import('@/features/checkout/views/CheckoutPage.vue');
 const CheckoutSuccessPage = () => import('@/features/checkout/views/CheckoutSuccess.vue');
 const ProductView = () => import('@/features/products/views/ProductView.vue');
+const FavoritesView = () => import('@/features/favorites/views/FavoritesView.vue');
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -28,6 +29,11 @@ const routes: Array<RouteRecordRaw> = [
     path: '/checkout',
     name: 'Checkout',
     component: CheckoutPage,
+  },
+  {
+    path: '/favoritos',
+    name: 'Favorites',
+    component: FavoritesView,
   },
   {
     path: '/:slug',

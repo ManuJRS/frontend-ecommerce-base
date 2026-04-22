@@ -5,6 +5,11 @@ import type { HeaderNavLink } from '../models';
 import { useHeaderStore } from '../stores/header.store';
 import { useCartStore } from '@/features/cart/stores/cart.store';
 import { useCartConfigStore } from '@/features/cart/stores/cartConfig.store';
+import { useFavoritesStore } from '@/features/favorites/store/favorites.store';
+import { storeToRefs } from 'pinia';
+
+const favoritesStore = useFavoritesStore();
+const { totalFavorites } = storeToRefs(favoritesStore);
 
 const headerStore = useHeaderStore();
 const cartStore = useCartStore();
@@ -224,16 +229,16 @@ onUnmounted(() => {
                 >person</span
               >
             </button>
-            <button
-              v-if="data?.showFavIcon"
-              type="button"
-              class="hover:bg-slate-100/50 dark:hover:bg-slate-800/50 rounded-md p-1.5 sm:p-2 transition-all"
-              aria-label="Favoritos"
-            >
-              <span class="material-symbols-outlined text-[22px] sm:text-[24px]" data-icon="favorite"
-                >favorite</span
+            <RouterLink to="/favoritos" class="relative group p-2">
+              <span class="material-symbols-outlined text-2xl">favorite</span>
+              
+              <span 
+                v-if="data?.showFavIcon"
+                class="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-on-primary"
               >
-            </button>
+                {{ totalFavorites }}
+              </span>
+            </RouterLink>
             <button
               v-if="data?.showCart"
               type="button"
