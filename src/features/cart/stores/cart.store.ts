@@ -65,6 +65,7 @@ export const useCartStore = defineStore('cart', () => {
     if (id == null) {
       items.value.push({ product: snapshot, quantity: 1 });
       clearCheckoutSession();
+      openDrawer();
       return;
     }
     const existing = items.value.find((line) => line.product.id === id);
@@ -74,6 +75,7 @@ export const useCartStore = defineStore('cart', () => {
       items.value.push({ product: snapshot, quantity: 1 });
     }
     clearCheckoutSession();
+    openDrawer();
   }
 
   function removeLine(index: number) {
