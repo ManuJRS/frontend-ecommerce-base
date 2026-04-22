@@ -8,6 +8,13 @@ import { useStoreViewStore } from '../stores/storeView.store';
 import type { AppliedProductFilters } from '../stores/storeView.store';
 import { useCartStore } from '@/features/cart/stores/cart.store';
 import { getProductDescriptionHtmlExcerpt } from '@/features/products/utils/renderProductMarkdown';
+import { useFavoritesStore } from '@/features/favorites/store/favorites.store';
+
+const favoritesStore = useFavoritesStore();
+
+function handleFavoriteClick(product: any) {
+  favoritesStore.toggleFavorite(product);
+}
 
 const props = defineProps<{
   block: ProductGridBlock;
@@ -490,18 +497,25 @@ function getVariantLabel(variant: any): string {
               </span>
             </div>
           </div>
-          <button
-            v-if="block.showFavIcon"
-            type="button"
-            :disabled="isOutOfStock(product)"
-            class="pointer-events-auto absolute top-4 right-4 z-20 transition-all duration-300 group/fav disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <span
-              class="material-symbols-outlined text-sm text-primary transition-transform group-hover/fav:scale-110"
-              :class="isOutOfStock(product) ? '' : 'hover:cursor-pointer hover:text-red-500/80'"
-              style="font-variation-settings: 'FILL' 0"
-            >favorite</span>
-          </button>
+            <button
+                v-if="block.showFavIcon"
+                type="button"
+                class="pointer-events-auto absolute top-4 right-4 z-20 transition-all duration-300 group/fav"
+                @click.stop="handleFavoriteClick(product)"
+              >
+                <span
+                  class="material-symbols-outlined text-sm transition-all duration-300"
+                  :class="{
+                    'text-red-500 scale-110': favoritesStore.isFavorite(product.id),
+                    'text-primary hover:text-red-500/80': !favoritesStore.isFavorite(product.id)
+                  }"
+                  :style="{
+                    fontVariationSettings: favoritesStore.isFavorite(product.id) ? 'FILL 1' : 'FILL 0'
+                  }"
+                >
+                  favorite
+                </span>
+              </button>
         </div>
 
         <component
