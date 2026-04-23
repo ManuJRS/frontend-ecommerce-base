@@ -1,16 +1,24 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { fetchPaymentIntent, updateOrderAddress, type PaymentIntentItemPayload } from '@/core/api';
-import type { ShippingMethodOption } from '@/features/cart/models';
 import { useCartStore } from '@/features/cart/stores/cart.store';
 import { useCartConfigStore } from '@/features/cart/stores/cartConfig.store';
 import ContactInformationSection from '@/features/checkout/components/ContactInformationSection.vue';
 import ShippingAddressSection from '@/features/checkout/components/ShippingAddressSection.vue';
-import ShippingMethodSection from '@/features/checkout/components/ShippingMethodSection.vue';
 import OrderSummaryCard from '@/features/checkout/components/OrderSummaryCard.vue';
 import CheckoutTrustIndicators from '@/features/checkout/components/CheckoutTrustIndicators.vue';
 import PaymentDetails from '@/features/checkout/components/PaymentDetails.vue';
+import { shippingService } from '@/core/api';
+
+interface ShippingRate {
+  id: string;
+  carrier: string;
+  service: string;
+  price: number;
+  days: number;
+}
+
 
 type PaymentDetailsExposed = {
   processStripePayment: () => Promise<void>;
@@ -73,33 +81,144 @@ const cartConfig = useCartConfigStore();
 const { items, subtotal } = storeToRefs(cart);
 const { checkoutCopy, pageCopy } = storeToRefs(cartConfig);
 
-const selectedShippingMethod = ref<ShippingMethodOption | null>(null);
+const shippingRates = ref<ShippingRate[]>([]);
+const selectedRate = ref<ShippingRate | null>(null);
+const isLoadingRates = ref(false);
+const noCoverageMessage = ref<string | null>(null);
+
+function normalizeZipCode(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 5);
+}
+
+function mapCartItemsToShippingPayload(): { documentId: string; quantity: number }[] {
+  return items.value
+    .map((line) => {
+      const product = line.product;
+      const documentId = String(product.documentId ?? product.variantDocumentId ?? '').trim();
+      return {
+        documentId,
+        quantity: line.quantity,
+      };
+    })
+    .filter((line) => line.documentId.length > 0);
+}
+
+function resetShippingRates(): void {
+  shippingRates.value = [];
+  selectedRate.value = null;
+  noCoverageMessage.value = null;
+}
+
+function pickBestRate(rates: ShippingRate[]): ShippingRate | null {
+  if (!rates.length) return null;
+
+  const freeRate = rates.find((rate) => Number(rate.price) === 0);
+  if (freeRate) return freeRate;
+
+  const localRate = rates.find((rate) => rate.id === 'local_delivery');
+  if (localRate) return localRate;
+
+  return rates.reduce((cheapest, current) =>
+    Number(current.price) < Number(cheapest.price) ? current : cheapest
+  );
+}
+
+function buildFallbackStandardRate(): ShippingRate {
+  const baseShipping = Number(checkoutCopy.value?.baseShippingCost ?? 0);
+  const fallbackPrice = Number.isFinite(baseShipping) ? baseShipping : 0;
+  return {
+    id: 'standard_fallback',
+    carrier: 'Envío estándar',
+    service: 'Tarifa de respaldo',
+    price: fallbackPrice,
+    days: 0,
+  };
+}
+
+async function handleZipCodeChange(): Promise<void> {
+  const zipCode = normalizeZipCode(checkoutForm.shipping.postalCode);
+
+  if (zipCode.length !== 5) {
+    resetShippingRates();
+    return;
+  }
+
+  const shippingItems = mapCartItemsToShippingPayload();
+  if (shippingItems.length === 0) {
+    resetShippingRates();
+    return;
+  }
+
+  isLoadingRates.value = true;
+  checkoutError.value = null;
+  selectedRate.value = null;
+  noCoverageMessage.value = null;
+
+  try {
+    const response = await shippingService.getEstimate(zipCode, shippingItems, subtotal.value);
+    const parsedRates = Array.isArray(response) ? (response as ShippingRate[]) : [];
+    if (parsedRates.length === 0) {
+      noCoverageMessage.value =
+        'No encontramos cobertura para este código postal. Mostramos una tarifa estándar de respaldo.';
+      const fallbackRate = buildFallbackStandardRate();
+      shippingRates.value = [fallbackRate];
+      selectedRate.value = fallbackRate;
+      return;
+    }
+
+    shippingRates.value = parsedRates;
+    selectedRate.value = pickBestRate(parsedRates);
+  } catch (error) {
+    console.error('Error al obtener tarifas de envío:', error);
+    checkoutError.value = 'No se pudieron obtener las tarifas de envío. Intenta nuevamente.';
+    resetShippingRates();
+  } finally {
+    isLoadingRates.value = false;
+  }
+}
+
+watch(
+  () => checkoutForm.shipping.postalCode,
+  (nextZipCode, prevZipCode) => {
+    const normalizedNext = normalizeZipCode(nextZipCode);
+    if (nextZipCode !== normalizedNext) {
+      checkoutForm.shipping.postalCode = normalizedNext;
+      return;
+    }
+
+    if (normalizedNext.length === 5 && normalizedNext !== normalizeZipCode(prevZipCode ?? '')) {
+      selectedRate.value = null;
+      void handleZipCodeChange();
+      return;
+    }
+
+    if (normalizedNext.length !== 5) {
+      resetShippingRates();
+    }
+  }
+);
 
 const shippingValue = computed(() => {
-  const m = selectedShippingMethod.value;
-  if (!m) {
+  const rate = selectedRate.value;
+  if (!rate) {
     const c = checkoutCopy.value;
     return (c?.fallbackShippingText ?? '').trim() || 'Se calcula después...';
   }
-  return m.label;
+  return `${rate.carrier} - ${rate.service}`;
 });
 
-const isFallbackShipping = computed(() => {
-  const m = selectedShippingMethod.value;
-  return !m || m.id === 'fallback';
-});
-
-const shippingAmount = computed(() => selectedShippingMethod.value?.cost ?? 0);
+const shippingAmount = computed(() => selectedRate.value?.price ?? 0);
+const orderTotal = computed(() => subtotal.value + shippingAmount.value);
+const isFallbackShipping = computed(() => !selectedRate.value);
 
 const estimatedTax = computed(() => {
   const pct = pageCopy.value?.taxAmount ?? 0;
-  const taxableBase = subtotal.value + (isFallbackShipping.value ? 0 : shippingAmount.value);
+  const taxableBase = orderTotal.value;
   return taxableBase * (pct / 100);
 });
 
 const totalAfterTax = computed(() => {
-  const ship = isFallbackShipping.value ? 0 : shippingAmount.value;
-  return subtotal.value + estimatedTax.value + ship;
+  return orderTotal.value + estimatedTax.value;
 });
 
 const isCheckoutFormComplete = computed(() => {
@@ -153,10 +272,16 @@ function mapCartItemsToPaymentIntentPayload(): PaymentIntentItemPayload[] {
   });
 }
 
-function buildCheckoutSnapshot(itemsPayload: PaymentIntentItemPayload[], zipCode: string): string {
+function buildCheckoutSnapshot(
+  itemsPayload: PaymentIntentItemPayload[],
+  zipCode: string,
+  shippingRate: ShippingRate | null
+): string {
   return JSON.stringify({
     items: itemsPayload,
     zipCode,
+    shippingRateId: shippingRate?.id ?? null,
+    shippingRatePrice: shippingRate?.price ?? 0,
     contact: checkoutForm.contact,
     shipping: checkoutForm.shipping,
   });
@@ -187,7 +312,7 @@ async function handleContinueToPayment() {
     return;
   }
 
-  if (!selectedShippingMethod.value) {
+  if (!selectedRate.value?.id) {
     checkoutError.value = 'Selecciona un método de envío.';
     return;
   }
@@ -199,7 +324,7 @@ async function handleContinueToPayment() {
 
     const itemsToBuy = mapCartItemsToPaymentIntentPayload();
     const zipCode = checkoutForm.shipping.postalCode.trim();
-    const snapshot = buildCheckoutSnapshot(itemsToBuy, zipCode);
+    const snapshot = buildCheckoutSnapshot(itemsToBuy, zipCode, selectedRate.value);
 
     if (
       cart.activeClientSecret &&
@@ -214,6 +339,7 @@ async function handleContinueToPayment() {
         zipCode,
         contact: { ...checkoutForm.contact },
         shippingAddress: { ...checkoutForm.shipping, zipCode },
+        shippingRateId: selectedRate.value.id,
       });
       clientSecret.value = payload.clientSecret;
       orderDocumentId.value = payload.documentId;
@@ -319,10 +445,57 @@ const handleCheckoutSubmit = async () => {
         >
           <ContactInformationSection v-model="checkoutForm.contact" />
           <ShippingAddressSection v-model="checkoutForm.shipping" />
-          <ShippingMethodSection
-            v-model:selected-shipping-method="selectedShippingMethod"
-            :postal-code="checkoutForm.shipping.postalCode"
-          />
+          <section class="space-y-4">
+            <h2 class="text-2xl font-bold tracking-tight text-primary">Método de envío</h2>
+
+            <div
+              v-if="isLoadingRates"
+              class="flex items-center gap-3 rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-4"
+            >
+              <span class="h-4 w-4 animate-spin rounded-full border-2 border-outline-variant border-t-primary" />
+              <p class="text-sm text-on-surface-variant">Cotizando opciones de envío...</p>
+            </div>
+
+            <div v-else-if="shippingRates.length > 0" class="space-y-3">
+              <button
+                v-for="rate in shippingRates"
+                :key="rate.id"
+                type="button"
+                class="w-full rounded-xl border p-4 text-left transition-all duration-200 hover:border-primary/60 hover:bg-surface-container-lowest/70"
+                :class="
+                  selectedRate?.id === rate.id
+                    ? 'active border-primary bg-primary/5 shadow-sm'
+                    : 'border-outline-variant/40'
+                "
+                @click="selectedRate = rate"
+              >
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <p class="font-semibold text-on-surface">{{ rate.carrier }} - {{ rate.service }}</p>
+                    <p class="text-xs uppercase tracking-wider text-on-surface-variant">
+                      Entrega estimada: {{ rate.days }} días
+                    </p>
+                  </div>
+                  <p class="font-bold text-on-surface">
+                    {{
+                      rate.price.toLocaleString('es-MX', {
+                        style: 'currency',
+                        currency: 'MXN',
+                        minimumFractionDigits: 2,
+                      })
+                    }}
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            <p
+              v-if="noCoverageMessage"
+              class="rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm text-on-surface-variant"
+            >
+              {{ noCoverageMessage }}
+            </p>
+          </section>
 
           <div
             v-if="checkoutError"

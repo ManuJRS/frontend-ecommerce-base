@@ -19,6 +19,29 @@ export interface PaymentIntentItemPayload {
   price: number;
 }
 
+export const shippingService = {
+  /**
+   * Obtiene las tarifas de Envíoclick desde Strapi
+   */
+  async getEstimate(
+    zipCode: string,
+    items: { documentId: string; quantity: number }[],
+    subtotal: number
+  ) {
+    try {
+      const response = await api.post('/orders/estimate-shipping', {
+        zipCode,
+        items,
+        subtotal,
+      });
+      return response.data; // Retorna el array de tarifas [{id, carrier, service, price, days}]
+    } catch (error) {
+      console.error('Error al obtener cotización:', error);
+      throw error;
+    }
+  }
+};
+
 export interface PaymentIntentResponse {
   clientSecret: string;
   documentId: string;
@@ -48,6 +71,8 @@ export interface PaymentIntentRequestBody {
   zipCode: string;
   contact: PaymentIntentContactPayload;
   shippingAddress: PaymentIntentShippingPayload;
+  // Reemplazamos el Record genérico por el ID que el backend ahora espera
+  shippingRateId: string; 
 }
 
 export const fetchPaymentIntent = async (
