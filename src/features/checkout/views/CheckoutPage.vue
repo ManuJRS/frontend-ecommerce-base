@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { fetchPaymentIntent, updateOrderAddress, type PaymentIntentItemPayload } from '@/core/api';
+import { useRouter } from 'vue-router';
 import { useCartStore } from '@/features/cart/stores/cart.store';
 import { useCartConfigStore } from '@/features/cart/stores/cartConfig.store';
 import ContactInformationSection from '@/features/checkout/components/ContactInformationSection.vue';
@@ -23,6 +24,7 @@ interface ShippingRate {
 type PaymentDetailsExposed = {
   processStripePayment: () => Promise<void>;
 };
+type PaymentMethod = 'stripe' | 'transfer';
 
 interface CheckoutContactForm {
   email: string;
@@ -50,14 +52,54 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const clientSecret = ref<string | null>(null);
 const orderDocumentId = ref<string | null>(null);
-/** Carga al preparar PaymentIntent (Continuar al pago), no en el montaje de la página. */
-const isLoadingSecret = ref(false);
+/** Tipo de la última orden creada vía API (evita duplicar intent al volver a tarjeta). */
+const orderKind = ref<'none' | 'stripe' | 'transfer'>('none');
+const isPrefetchingStripe = ref(false);
+/** Solo al avanzar a la fase de pago (sin crear PaymentIntent). */
+const isAdvancingToPhase2 = ref(false);
 const checkoutError = ref<string | null>(null);
-const isSubmitting = ref(false);
+/** Clic en «Confirmar pago»: crea orden / intent y evita doble envío. */
+const isConfirmingPayment = ref(false);
 const paymentComponentRef = ref<PaymentDetailsExposed | null>(null);
 const phase1FormRef = ref<HTMLFormElement | null>(null);
-/** Fase 2: datos enviados al backend y Stripe listo. */
+/** Fase 2: método de pago y confirmación (el intent se crea al confirmar). */
 const isFormValidAndSubmitted = ref(false);
+const selectedMethod = ref<PaymentMethod>('stripe');
+
+const stripeReturnUrl = computed(() => {
+  if (!orderDocumentId.value) return null;
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return `${origin}/checkout/success?documentId=${encodeURIComponent(orderDocumentId.value)}&method=stripe`;
+});
+
+const isStripeSubmitBlocked = computed(
+  () =>
+    selectedMethod.value === 'stripe' &&
+    (!clientSecret.value || isPrefetchingStripe.value)
+);
+
+function validatePhase2CheckoutPrereqs(): string | null {
+  if (items.value.length === 0) {
+    return 'Tu carrito está vacío.';
+  }
+  if (
+    !checkoutForm.contact.email.trim() ||
+    !checkoutForm.shipping.firstName.trim() ||
+    !checkoutForm.shipping.address.trim() ||
+    !checkoutForm.shipping.city.trim() ||
+    !checkoutForm.shipping.postalCode.trim()
+  ) {
+    return 'Completa email, nombre, dirección, ciudad y código postal para continuar.';
+  }
+  const email = checkoutForm.contact.email.trim();
+  if (!EMAIL_REGEX.test(email)) {
+    return 'Ingresa un correo electrónico válido.';
+  }
+  if (!selectedRate.value?.id) {
+    return 'Selecciona un método de envío.';
+  }
+  return null;
+}
 
 const checkoutForm = reactive<CheckoutFormModel>({
   contact: {
@@ -78,6 +120,28 @@ const checkoutForm = reactive<CheckoutFormModel>({
 });
 const cart = useCartStore();
 const cartConfig = useCartConfigStore();
+const router = useRouter();
+
+/** Limpia estado de pago en memoria para una futura compra (documentId, intent, tipo de orden). */
+function resetCheckoutPaymentLocals(): void {
+  clientSecret.value = null;
+  orderDocumentId.value = null;
+  orderKind.value = 'none';
+  isPrefetchingStripe.value = false;
+}
+
+/** Tras respuesta OK del servidor en transferencia: vacía carrito, resetea refs y navega. */
+async function finalizeTransferCheckoutSuccess(documentId: string): Promise<void> {
+  cart.clearCart();
+  resetCheckoutPaymentLocals();
+  await router.push({
+    path: '/checkout/success',
+    query: {
+      documentId,
+      method: 'transfer',
+    },
+  });
+}
 const { items, subtotal } = storeToRefs(cart);
 const { checkoutCopy, pageCopy } = storeToRefs(cartConfig);
 
@@ -275,13 +339,15 @@ function mapCartItemsToPaymentIntentPayload(): PaymentIntentItemPayload[] {
 function buildCheckoutSnapshot(
   itemsPayload: PaymentIntentItemPayload[],
   zipCode: string,
-  shippingRate: ShippingRate | null
+  shippingRate: ShippingRate | null,
+  paymentMethod: PaymentMethod
 ): string {
   return JSON.stringify({
     items: itemsPayload,
     zipCode,
     shippingRateId: shippingRate?.id ?? null,
     shippingRatePrice: shippingRate?.price ?? 0,
+    paymentMethod,
     contact: checkoutForm.contact,
     shipping: checkoutForm.shipping,
   });
@@ -317,94 +383,170 @@ async function handleContinueToPayment() {
     return;
   }
 
-  isLoadingSecret.value = true;
+  isAdvancingToPhase2.value = true;
 
   try {
     await cartConfig.fetchFullCartConfig();
+    cart.clearCheckoutSession();
+    clientSecret.value = null;
+    orderDocumentId.value = null;
+    orderKind.value = 'none';
+    isFormValidAndSubmitted.value = true;
+  } catch (error) {
+    console.error('Error al cargar configuración del carrito:', error);
+    checkoutError.value = 'No se pudo continuar. Intenta nuevamente.';
+    isFormValidAndSubmitted.value = false;
+  } finally {
+    isAdvancingToPhase2.value = false;
+  }
+}
 
+async function runStripePrefetchFromWatcher(): Promise<void> {
+  if (!isFormValidAndSubmitted.value || selectedMethod.value !== 'stripe') return;
+  if (clientSecret.value) return;
+  if (isPrefetchingStripe.value) return;
+
+  const errMsg = validatePhase2CheckoutPrereqs();
+  if (errMsg) {
+    checkoutError.value = errMsg;
+    return;
+  }
+
+  isPrefetchingStripe.value = true;
+  checkoutError.value = null;
+
+  try {
+    await cartConfig.fetchFullCartConfig();
     const itemsToBuy = mapCartItemsToPaymentIntentPayload();
     const zipCode = checkoutForm.shipping.postalCode.trim();
-    const snapshot = buildCheckoutSnapshot(itemsToBuy, zipCode, selectedRate.value);
 
-    if (
-      cart.activeClientSecret &&
-      cart.activeOrderDocumentId &&
-      cart.lastCheckoutSnapshot === snapshot
-    ) {
-      clientSecret.value = cart.activeClientSecret;
-      orderDocumentId.value = cart.activeOrderDocumentId;
-    } else {
-      const payload = await fetchPaymentIntent({
-        items: itemsToBuy,
-        zipCode,
-        contact: { ...checkoutForm.contact },
-        shippingAddress: { ...checkoutForm.shipping, zipCode },
-        shippingRateId: selectedRate.value.id,
-      });
-      clientSecret.value = payload.clientSecret;
-      orderDocumentId.value = payload.documentId;
-      cart.setCheckoutSession(payload.clientSecret, payload.documentId, snapshot);
+    const payload = await fetchPaymentIntent({
+      items: itemsToBuy,
+      zipCode,
+      contact: { ...checkoutForm.contact },
+      shippingAddress: { ...checkoutForm.shipping, zipCode },
+      shippingRateId: selectedRate.value!.id,
+      paymentMethod: 'stripe',
+    });
+
+    if (selectedMethod.value !== 'stripe') {
+      return;
     }
 
-    isFormValidAndSubmitted.value = true;
+    orderDocumentId.value = payload.documentId;
+    if (!payload.clientSecret) {
+      checkoutError.value = 'No se recibió la clave de pago. Intenta nuevamente.';
+      return;
+    }
+
+    clientSecret.value = payload.clientSecret;
+    orderKind.value = 'stripe';
+
+    await updateOrderAddress(payload.documentId, checkoutForm);
+
+    cart.setCheckoutSession(
+      payload.clientSecret,
+      payload.documentId,
+      buildCheckoutSnapshot(itemsToBuy, zipCode, selectedRate.value, 'stripe')
+    );
   } catch (error: any) {
-    isFormValidAndSubmitted.value = false;
+    if (selectedMethod.value !== 'stripe') return;
     const responseData = error?.response?.data;
-    // Buscamos el código y los detalles en la estructura estándar de Strapi v4 o plana
     const details = responseData?.error?.details || responseData;
     const code = details?.code || responseData?.error?.name;
 
     if (code === 'INSUFFICIENT_STOCK') {
       checkoutError.value = `Lo sentimos, no hay stock suficiente de "${details?.productName || 'este producto'}". Solo nos quedan ${details?.available} unidades disponibles.`;
     } else {
-      checkoutError.value = 'No se pudo inicializar el pago. Intenta nuevamente.';
+      checkoutError.value = 'No se pudo preparar el pago con tarjeta. Intenta nuevamente.';
     }
   } finally {
-    isLoadingSecret.value = false;
+    isPrefetchingStripe.value = false;
   }
 }
 
-const handleCheckoutSubmit = async () => {
+watch(
+  () => [isFormValidAndSubmitted.value, selectedMethod.value] as const,
+  () => {
+    void runStripePrefetchFromWatcher();
+  },
+  { immediate: true }
+);
+
+async function handleCheckout() {
   if (!isFormValidAndSubmitted.value) return;
-  if (!paymentComponentRef.value || !clientSecret.value) return;
 
-  if (
-    !checkoutForm.contact.email.trim() ||
-    !checkoutForm.shipping.firstName.trim() ||
-    !checkoutForm.shipping.address.trim() ||
-    !checkoutForm.shipping.city.trim() ||
-    !checkoutForm.shipping.postalCode.trim()
-  ) {
-    checkoutError.value = 'Completa email, nombre, dirección, ciudad y código postal para continuar.';
-    return;
-  }
-
-  if (!orderDocumentId.value) {
-    checkoutError.value = 'No se pudo identificar la orden. Recarga la página e intenta de nuevo.';
-    return;
-  }
-
-  isSubmitting.value = true;
   checkoutError.value = null;
 
-  try {
-    await updateOrderAddress(orderDocumentId.value, checkoutForm);
-  } catch (error) {
-    console.error('Error al actualizar la dirección de envío:', error);
-    checkoutError.value = 'No se pudo guardar la dirección de envío. Intenta de nuevo.';
-    isSubmitting.value = false;
+  const prereqError = validatePhase2CheckoutPrereqs();
+  if (prereqError) {
+    checkoutError.value = prereqError;
     return;
   }
 
+  const method = selectedMethod.value;
+
+  isConfirmingPayment.value = true;
+
   try {
-    await paymentComponentRef.value.processStripePayment();
-  } catch (error) {
-    console.error('Error al procesar el pago:', error);
-    checkoutError.value = 'No se pudo completar el pago.';
+    await cartConfig.fetchFullCartConfig();
+
+    const itemsToBuy = mapCartItemsToPaymentIntentPayload();
+    const zipCode = checkoutForm.shipping.postalCode.trim();
+
+    if (method === 'stripe') {
+      if (!clientSecret.value || !orderDocumentId.value) {
+        checkoutError.value =
+          'La pasarela aún se está cargando o hubo un error. Espera un momento o cambia de método y vuelve a «Tarjeta».';
+        return;
+      }
+
+      await updateOrderAddress(orderDocumentId.value, checkoutForm);
+
+      await nextTick();
+      await nextTick();
+
+      await paymentComponentRef.value?.processStripePayment();
+      return;
+    }
+
+    if (orderKind.value === 'transfer' && orderDocumentId.value) {
+      const transferDocumentId = orderDocumentId.value;
+      await updateOrderAddress(transferDocumentId, checkoutForm);
+      await finalizeTransferCheckoutSuccess(transferDocumentId);
+      return;
+    }
+
+    const payload = await fetchPaymentIntent({
+      items: itemsToBuy,
+      zipCode,
+      contact: { ...checkoutForm.contact },
+      shippingAddress: { ...checkoutForm.shipping, zipCode },
+      shippingRateId: selectedRate.value!.id,
+      paymentMethod: 'transfer',
+    });
+
+    const transferDocumentId = payload.documentId;
+    orderDocumentId.value = transferDocumentId;
+    orderKind.value = 'transfer';
+
+    await updateOrderAddress(transferDocumentId, checkoutForm);
+
+    await finalizeTransferCheckoutSuccess(transferDocumentId);
+  } catch (error: any) {
+    const responseData = error?.response?.data;
+    const details = responseData?.error?.details || responseData;
+    const code = details?.code || responseData?.error?.name;
+
+    if (code === 'INSUFFICIENT_STOCK') {
+      checkoutError.value = `Lo sentimos, no hay stock suficiente de "${details?.productName || 'este producto'}". Solo nos quedan ${details?.available} unidades disponibles.`;
+    } else {
+      checkoutError.value = 'No se pudo completar el pago. Intenta nuevamente.';
+    }
   } finally {
-    isSubmitting.value = false;
+    isConfirmingPayment.value = false;
   }
-};
+}
 </script>
 
 <template>
@@ -509,15 +651,15 @@ const handleCheckoutSubmit = async () => {
             <button
               type="submit"
               class="w-full py-6 bg-primary text-on-primary font-bold tracking-widest uppercase text-sm hover:opacity-90 transition-opacity active:scale-[0.98] duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="isLoadingSecret"
+              :disabled="isAdvancingToPhase2"
             >
-              {{ isLoadingSecret ? 'Preparando pago...' : 'Continuar al Pago' }}
+              {{ isAdvancingToPhase2 ? 'Cargando...' : 'Continuar al Pago' }}
             </button>
             <p
-              v-if="isLoadingSecret"
+              v-if="isAdvancingToPhase2"
               class="text-sm text-on-surface-variant"
             >
-              Enviando datos y preparando el pago seguro...
+              Preparando el paso de pago...
             </p>
           </div>
         </form>
@@ -532,18 +674,26 @@ const handleCheckoutSubmit = async () => {
           </div>
 
           <PaymentDetails
-            v-if="clientSecret"
             ref="paymentComponentRef"
             :client-secret="clientSecret"
+            :stripe-return-url="stripeReturnUrl"
+            :is-prefetching-intent="isPrefetchingStripe"
+            v-model:selected-method="selectedMethod"
+            :bank-details="checkoutCopy?.bankDetails"
           />
 
           <button
             type="button"
-            :disabled="isSubmitting || !clientSecret || !isFormValidAndSubmitted"
-            class="w-full py-6 bg-primary text-on-primary font-bold tracking-widest uppercase text-sm hover:opacity-90 transition-opacity active:scale-[0.98] duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            @click="handleCheckoutSubmit"
+            :disabled="isConfirmingPayment || !isFormValidAndSubmitted || isStripeSubmitBlocked"
+            class="inline-flex w-full items-center justify-center gap-3 py-6 bg-primary text-on-primary font-bold tracking-widest uppercase text-sm hover:opacity-90 transition-opacity active:scale-[0.98] duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="handleCheckout"
           >
-            {{ isSubmitting ? 'Procesando...' : 'Complete Purchase' }}
+            <span
+              v-if="isConfirmingPayment"
+              class="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-on-primary/30 border-t-on-primary"
+              aria-hidden="true"
+            />
+            <span>{{ isConfirmingPayment ? 'Procesando...' : 'Confirmar pago' }}</span>
           </button>
         </div>
       </div>
