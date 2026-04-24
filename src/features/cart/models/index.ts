@@ -28,6 +28,8 @@ export interface CheckoutConfig {
   fallbackShippingText: string;
   /** Advertencia mostrada cuando aplica fallback de envío. */
   fallbackShippingWarning: string;
+  /** Instrucciones bancarias en texto enriquecido/HTML para transferencia. */
+  bankDetails?: string;
 }
 
 /** Badges del resumen (página carrito). */

@@ -89,6 +89,7 @@ const DEFAULT_CHECKOUT: CheckoutConfig = {
   shippingFreeText: '',
   fallbackShippingText: '',
   fallbackShippingWarning: '',
+  bankDetails: '',
 };
 
 const CHECKOUT_DISCOUNT_MODES: readonly CheckoutConfig['discountMode'][] = [
@@ -137,6 +138,7 @@ function mapCheckout(raw: Record<string, unknown>): CheckoutConfig {
     fallbackShippingWarning: String(
       raw.fallbackShippingWarning ?? DEFAULT_CHECKOUT.fallbackShippingWarning
     ),
+    bankDetails: String(raw.bankDetails ?? DEFAULT_CHECKOUT.bankDetails ?? ''),
   };
 }
 
