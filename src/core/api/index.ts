@@ -43,7 +43,8 @@ export const shippingService = {
 };
 
 export interface PaymentIntentResponse {
-  clientSecret: string;
+  /** Solo presente cuando `paymentMethod` es `stripe`. */
+  clientSecret: string | null;
   documentId: string;
 }
 
@@ -72,7 +73,8 @@ export interface PaymentIntentRequestBody {
   contact: PaymentIntentContactPayload;
   shippingAddress: PaymentIntentShippingPayload;
   // Reemplazamos el Record genérico por el ID que el backend ahora espera
-  shippingRateId: string; 
+  shippingRateId: string;
+  paymentMethod: 'stripe' | 'transfer';
 }
 
 export const fetchPaymentIntent = async (
@@ -80,9 +82,10 @@ export const fetchPaymentIntent = async (
 ): Promise<PaymentIntentResponse> => {
   try {
     const response = await api.post('/orders/payment-intent', body);
+    const data = response.data as { clientSecret?: string | null; documentId: string };
     return {
-      clientSecret: response.data.clientSecret as string,
-      documentId: response.data.documentId as string,
+      clientSecret: data.clientSecret != null && data.clientSecret !== '' ? String(data.clientSecret) : null,
+      documentId: String(data.documentId),
     };
   } catch (error) {
     console.error('Error al iniciar el checkout:', error);
