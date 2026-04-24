@@ -10,6 +10,7 @@ import ShippingAddressSection from '@/features/checkout/components/ShippingAddre
 import OrderSummaryCard from '@/features/checkout/components/OrderSummaryCard.vue';
 import CheckoutTrustIndicators from '@/features/checkout/components/CheckoutTrustIndicators.vue';
 import PaymentDetails from '@/features/checkout/components/PaymentDetails.vue';
+import DevAddressSeeder from '@/dev/DevAddressSeeder.vue';
 import { shippingService } from '@/core/api';
 
 interface ShippingRate {
@@ -152,6 +153,33 @@ const noCoverageMessage = ref<string | null>(null);
 
 function normalizeZipCode(value: string): string {
   return value.replace(/\D/g, '').slice(0, 5);
+}
+
+/** Rellena `checkoutForm` desde `DevAddressSeeder` (el seeder usa `zipCode`; el formulario usa `postalCode`). */
+function fillForm(data: {
+  firstName?: string;
+  lastName?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  phone?: string;
+  zipCode?: string;
+  deliveryInstructions?: string;
+}) {
+  checkoutForm.shipping.firstName = String(data.firstName ?? '');
+  checkoutForm.shipping.lastName = String(data.lastName ?? '');
+  checkoutForm.shipping.address = String(data.address ?? '');
+  checkoutForm.shipping.city = String(data.city ?? '');
+  checkoutForm.shipping.state = String(data.state ?? '');
+  checkoutForm.shipping.country = String(data.country ?? '');
+  checkoutForm.shipping.phone = String(data.phone ?? '');
+  checkoutForm.shipping.postalCode = normalizeZipCode(String(data.zipCode ?? ''));
+  checkoutForm.shipping.deliveryInstructions = String(data.deliveryInstructions ?? '');
+
+  if (!checkoutForm.contact.email.trim()) {
+    checkoutForm.contact.email = 'dev@example.com';
+  }
 }
 
 function mapCartItemsToShippingPayload(): { documentId: string; quantity: number }[] {
@@ -663,6 +691,7 @@ async function handleCheckout() {
             </p>
           </div>
         </form>
+        <DevAddressSeeder @select-address="fillForm" />
 
         <div v-if="isFormValidAndSubmitted" class="space-y-6">
           <div
