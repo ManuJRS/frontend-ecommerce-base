@@ -1,10 +1,21 @@
 <script setup lang="ts">
 import { loadStripe, type Stripe, type StripeElements, type StripePaymentElement } from '@stripe/stripe-js';
-import { onMounted, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
+
+type PaymentMethod = 'stripe' | 'transfer';
 
 const props = defineProps<{
   clientSecret: string | null;
+  bankDetails?: string;
+  /** URL completa de retorno tras confirmar con Stripe (incluye documentId si aplica). */
+  stripeReturnUrl?: string | null;
+  /** True mientras el padre obtiene el PaymentIntent (antes de tener clientSecret). */
+  isPrefetchingIntent?: boolean;
 }>();
+
+const selectedMethod = defineModel<PaymentMethod>('selectedMethod', {
+  default: 'stripe',
+});
 
 const stripeInstance = ref<Stripe | null>(null);
 const elementsInstance = ref<StripeElements | null>(null);
@@ -13,10 +24,34 @@ const isLoading = ref(true);
 const paymentError = ref<string | null>(null);
 const isProcessing = ref(false);
 
+function destroyStripeElements() {
+  try {
+    paymentElementInstance.value?.unmount();
+  } catch {
+    /* ignore */
+  }
+  paymentElementInstance.value = null;
+  elementsInstance.value = null;
+  stripeInstance.value = null;
+}
+
 const initializeStripeElements = async () => {
-  if (!props.clientSecret || paymentElementInstance.value) return;
+  if (selectedMethod.value !== 'stripe') {
+    destroyStripeElements();
+    isLoading.value = false;
+    return;
+  }
+  if (!props.clientSecret) {
+    destroyStripeElements();
+    isLoading.value = false;
+    return;
+  }
 
   try {
+    isLoading.value = true;
+    paymentError.value = null;
+    destroyStripeElements();
+
     const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
     stripeInstance.value = await loadStripe(stripePublicKey);
 
@@ -38,16 +73,12 @@ const initializeStripeElements = async () => {
 };
 
 watch(
-  () => props.clientSecret,
+  () => [props.clientSecret, selectedMethod.value],
   () => {
     void initializeStripeElements();
   },
   { immediate: true }
 );
-
-onMounted(() => {
-  void initializeStripeElements();
-});
 
 const processStripePayment = async () => {
   if (!stripeInstance.value || !elementsInstance.value) {
@@ -57,10 +88,14 @@ const processStripePayment = async () => {
   isProcessing.value = true;
   paymentError.value = null;
 
+  const returnUrl =
+    props.stripeReturnUrl?.trim() ||
+    `${window.location.origin}/checkout/success`;
+
   const { error } = await stripeInstance.value.confirmPayment({
     elements: elementsInstance.value,
     confirmParams: {
-      return_url: `${window.location.origin}/checkout/success`,
+      return_url: returnUrl,
     },
   });
 
@@ -81,25 +116,49 @@ defineExpose({
     <h2 class="text-2xl font-bold tracking-tight mb-8 text-primary">Payment Details</h2>
     <div class="bg-surface-container-lowest p-8 space-y-8">
       <div class="flex gap-4 pb-4">
-        <div class="px-4 py-2 bg-surface-container rounded-sm">
+        <button
+          type="button"
+          class="px-4 py-2 rounded-sm transition-all duration-200"
+          :class="
+            selectedMethod === 'stripe'
+              ? 'opacity-100 bg-surface-container-high'
+              : 'opacity-50 bg-surface-container'
+          "
+          @click="selectedMethod = 'stripe'"
+        >
           <span class="material-symbols-outlined align-middle" data-icon="credit_card">
             credit_card
           </span>
           <span class="text-sm font-medium ml-2">Credit Card</span>
-        </div>
-        <div class="px-4 py-2 bg-surface-container-high rounded-sm opacity-50">
+        </button>
+        <button
+          type="button"
+          class="px-4 py-2 rounded-sm transition-all duration-200"
+          :class="
+            selectedMethod === 'transfer'
+              ? 'opacity-100 bg-surface-container-high'
+              : 'opacity-50 bg-surface-container'
+          "
+          @click="selectedMethod = 'transfer'"
+        >
           <span class="material-symbols-outlined align-middle" data-icon="account_balance">
             account_balance
           </span>
           <span class="text-sm font-medium ml-2">Bank Transfer</span>
-        </div>
+        </button>
       </div>
 
-      <div v-if="isLoading" class="text-center py-8 text-on-surface-variant animate-pulse">
+      <div
+        v-if="
+          selectedMethod === 'stripe' &&
+          ((!clientSecret && props.isPrefetchingIntent) || (clientSecret && isLoading))
+        "
+        class="text-center py-8 text-on-surface-variant animate-pulse"
+      >
         Cargando pasarela segura...
       </div>
 
-      <div v-show="!isLoading" class="space-y-6">
+      <div v-show="selectedMethod === 'stripe' && clientSecret && !isLoading" class="space-y-6">
         <div class="group">
           <label
             class="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2"
@@ -111,6 +170,21 @@ defineExpose({
             class="w-full bg-surface-container-highest border-none py-4 px-5 focus-within:bg-white focus-within:ring-1 focus-within:ring-primary/20"
           ></div>
         </div>
+      </div>
+
+      <div
+        v-if="selectedMethod === 'transfer'"
+        class="rounded-xl border border-outline-variant/40 bg-surface-container-high p-4 text-sm text-on-surface"
+      >
+        <p class="text-xs uppercase tracking-widest text-on-surface-variant mb-2">Datos bancarios</p>
+        <div
+          v-if="props.bankDetails?.trim()"
+          class="prose prose-sm max-w-none prose-p:my-1"
+          v-html="props.bankDetails"
+        />
+        <p v-else class="text-on-surface-variant">
+          Te compartiremos los datos bancarios al confirmar la orden.
+        </p>
       </div>
 
       <div
