@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { loadStripe, type Stripe, type StripeElements, type StripePaymentElement } from '@stripe/stripe-js';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { renderProductDescriptionMarkdown } from '@/features/products/utils/renderProductMarkdown';
 
 type PaymentMethod = 'stripe' | 'transfer';
 
 const props = defineProps<{
   clientSecret: string | null;
   bankDetails?: string;
-  /** URL completa de retorno tras confirmar con Stripe (incluye documentId si aplica). */
+  bankTransferTitle?: string;
   stripeReturnUrl?: string | null;
-  /** True mientras el padre obtiene el PaymentIntent (antes de tener clientSecret). */
   isPrefetchingIntent?: boolean;
 }>();
 
@@ -23,6 +23,11 @@ const paymentElementInstance = ref<StripePaymentElement | null>(null);
 const isLoading = ref(true);
 const paymentError = ref<string | null>(null);
 const isProcessing = ref(false);
+const bankDetailsHtml = computed(() => {
+  const raw = props.bankDetails;
+  if (!raw || !String(raw).trim()) return '';
+  return renderProductDescriptionMarkdown(raw);
+});
 
 function destroyStripeElements() {
   try {
@@ -144,7 +149,7 @@ defineExpose({
           <span class="material-symbols-outlined align-middle" data-icon="account_balance">
             account_balance
           </span>
-          <span class="text-sm font-medium ml-2">Bank Transfer</span>
+          <span class="text-sm font-medium ml-2">{{ props.bankTransferTitle || 'Bank Transfer' }}</span>
         </button>
       </div>
 
@@ -178,9 +183,9 @@ defineExpose({
       >
         <p class="text-xs uppercase tracking-widest text-on-surface-variant mb-2">Datos bancarios</p>
         <div
-          v-if="props.bankDetails?.trim()"
+          v-if="bankDetailsHtml"
           class="prose prose-sm max-w-none prose-p:my-1"
-          v-html="props.bankDetails"
+          v-html="bankDetailsHtml"
         />
         <p v-else class="text-on-surface-variant">
           Te compartiremos los datos bancarios al confirmar la orden.

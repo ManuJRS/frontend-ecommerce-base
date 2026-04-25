@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useCartStore } from '@/features/cart/stores/cart.store';
 import { useCartConfigStore } from '@/features/cart/stores/cartConfig.store';
+import { renderProductDescriptionMarkdown } from '@/features/products/utils/renderProductMarkdown';
 import { API_URL } from '@/shared/config/api';
 
 type ResultKind = 'success' | 'failed' | 'pending' | 'verifying';
@@ -19,8 +20,10 @@ const result = ref<ResultKind>('pending');
 const retryCount = ref(0);
 const maxRetries = 5;
 const detectedPaymentMethod = ref<PaymentMethod>('stripe');
+const displayOrderId = ref<string | null>(null);
+const isLoadingOrderInfo = ref(false);
 
-const orderId = computed(() => {
+const orderDocumentId = computed(() => {
   const doc = route.query.documentId;
   const camel = route.query.orderId;
   const snake = route.query.order_id;
@@ -36,16 +39,62 @@ const queryPaymentMethod = computed<PaymentMethod | null>(() => {
 });
 
 const isTransferPayment = computed(() => detectedPaymentMethod.value === 'transfer');
+const isCopyingBankDetails = ref(false);
+const hasCopiedBankDetails = ref(false);
+const bankDetailsHtml = computed(() => {
+  const raw = checkoutCopy.value?.bankDetails;
+  if (!raw || !String(raw).trim()) return '';
+  return renderProductDescriptionMarkdown(raw);
+});
+
+function htmlToPlainText(html: string): string {
+  if (!html.trim()) return '';
+  if (typeof window === 'undefined') return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  const el = document.createElement('div');
+  el.innerHTML = html;
+  return (el.textContent || el.innerText || '').replace(/\s+/g, ' ').trim();
+}
+
+async function copyBankDetails(): Promise<void> {
+  const textToCopy = htmlToPlainText(bankDetailsHtml.value);
+  if (!textToCopy || isCopyingBankDetails.value) return;
+  isCopyingBankDetails.value = true;
+  try {
+    await navigator.clipboard.writeText(textToCopy);
+    hasCopiedBankDetails.value = true;
+    window.setTimeout(() => {
+      hasCopiedBankDetails.value = false;
+    }, 1800);
+  } catch (error) {
+    console.error('No se pudieron copiar los datos bancarios:', error);
+  } finally {
+    isCopyingBankDetails.value = false;
+  }
+}
+
+async function fetchOrderDetails(documentId: string) {
+  const response = await fetch(`${API_URL}/orders/${documentId}`);
+  const orderData = await response.json();
+  return orderData?.data ?? null;
+}
+
+function syncOrderDisplayId(orderNode: any): void {
+  const ordRaw = orderNode?.orderId || orderNode?.attributes?.orderId;
+  const ord = typeof ordRaw === 'string' ? ordRaw.trim() : String(ordRaw ?? '').trim();
+  if (ord) {
+    displayOrderId.value = ord;
+  }
+}
 
 async function verifyOrder() {
-  if (!orderId.value) return;
+  if (!orderDocumentId.value) return;
   
   result.value = 'verifying';
+  isLoadingOrderInfo.value = true;
   
   try {
-    const response = await fetch(`${API_URL}/orders/${orderId.value}`);
-    const orderData = await response.json();
-    const orderNode = orderData.data;
+    const orderNode = await fetchOrderDetails(orderDocumentId.value);
+    syncOrderDisplayId(orderNode);
     const currentStatus = orderNode?.status || orderNode?.attributes?.status;
     const methodRaw = orderNode?.paymentMethod || orderNode?.attributes?.paymentMethod;
     if (methodRaw === 'transfer' || methodRaw === 'stripe') {
@@ -69,6 +118,8 @@ async function verifyOrder() {
   } catch (error) {
     console.error('Error verificando orden:', error);
     determineStatusFromQuery();
+  } finally {
+    isLoadingOrderInfo.value = false;
   }
 }
 
@@ -102,24 +153,18 @@ onMounted(() => {
     detectedPaymentMethod.value = queryPaymentMethod.value;
   }
 
-  const params = route.query;
-  const status = params.redirect_status;
-
-  if (queryPaymentMethod.value === 'transfer' && orderId.value) {
-    result.value = 'success';
-    return;
-  }
-
-  if (status === 'succeeded' && detectedPaymentMethod.value === 'stripe') {
-    cart.clearCart();
-    result.value = 'success';
-    return;
-  }
-
-  if (orderId.value) {
-    verifyOrder();
+  if (orderDocumentId.value) {
+    void verifyOrder();
   } else {
+    const params = route.query;
+    const status = params.redirect_status;
+    if (status === 'succeeded' && detectedPaymentMethod.value === 'stripe') {
+      cart.clearCart();
+      result.value = 'success';
+      return;
+    }
     result.value = 'pending';
+    isLoadingOrderInfo.value = false;
   }
 });
 
@@ -171,14 +216,30 @@ const message = computed(() => {
           v-if="isTransferPayment"
           class="text-left rounded-xl border border-outline-variant/40 bg-surface-container-high p-4 space-y-3"
         >
-          <div class="text-sm">
-            <span class="font-semibold">Número de orden:</span>
-            <span class="ml-2">{{ orderId ?? 'Pendiente de asignación' }}</span>
+          <div class="flex items-start justify-between gap-3">
+            <div class="text-sm">
+              <span class="font-semibold">Número de orden:</span>
+              <span class="ml-2">
+                {{ isLoadingOrderInfo ? 'Cargando...' : displayOrderId || 'Pendiente de asignación' }}
+              </span>
+            </div>
+            <button
+              v-if="bankDetailsHtml"
+              type="button"
+              class="hover:cursor-pointer inline-flex items-center gap-1 rounded-md border border-outline-variant/50 px-2.5 py-1.5 text-xs text-on-surface-variant hover:bg-surface-container-highest disabled:opacity-60"
+              :disabled="isCopyingBankDetails"
+              @click="copyBankDetails"
+            >
+              <span class="material-symbols-outlined text-base leading-none">
+                {{ hasCopiedBankDetails ? 'check' : 'content_copy' }}
+              </span>
+              <span>{{ hasCopiedBankDetails ? 'Copiado' : 'Copiar' }}</span>
+            </button>
           </div>
           <div
-            v-if="checkoutCopy?.bankDetails?.trim()"
+            v-if="bankDetailsHtml"
             class="prose prose-sm max-w-none text-on-surface"
-            v-html="checkoutCopy.bankDetails"
+            v-html="bankDetailsHtml"
           />
           <p v-else class="text-sm text-on-surface-variant">
             Te enviaremos los datos de transferencia por correo en breve.
@@ -203,7 +264,7 @@ const message = computed(() => {
       </div>
 
       <div class="mt-10">
-        <button @click="router.push('/')" class="w-full sm:w-auto min-w-[200px] inline-flex items-center justify-center rounded-xl bg-primary px-8 py-4 text-sm font-bold uppercase text-on-primary">
+        <button @click="router.push('/tienda')" class="w-full sm:w-auto min-w-[200px] inline-flex items-center justify-center rounded-xl bg-primary px-8 py-4 text-sm font-bold uppercase text-on-primary">
           Volver al inicio
         </button>
       </div>
