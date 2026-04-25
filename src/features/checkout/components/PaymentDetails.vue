@@ -9,6 +9,7 @@ const props = defineProps<{
   clientSecret: string | null;
   bankDetails?: string;
   bankTransferTitle?: string;
+  allowBankTransfer?: boolean;
   stripeReturnUrl?: string | null;
   isPrefetchingIntent?: boolean;
 }>();
@@ -28,6 +29,7 @@ const bankDetailsHtml = computed(() => {
   if (!raw || !String(raw).trim()) return '';
   return renderProductDescriptionMarkdown(raw);
 });
+const canUseBankTransfer = computed(() => props.allowBankTransfer !== false);
 
 function destroyStripeElements() {
   try {
@@ -85,6 +87,16 @@ watch(
   { immediate: true }
 );
 
+watch(
+  () => canUseBankTransfer.value,
+  (enabled) => {
+    if (!enabled && selectedMethod.value !== 'stripe') {
+      selectedMethod.value = 'stripe';
+    }
+  },
+  { immediate: true }
+);
+
 const processStripePayment = async () => {
   if (!stripeInstance.value || !elementsInstance.value) {
     throw new Error('Stripe aún no está listo');
@@ -125,9 +137,12 @@ defineExpose({
           type="button"
           class="px-4 py-2 rounded-sm transition-all duration-200"
           :class="
-            selectedMethod === 'stripe'
-              ? 'opacity-100 bg-surface-container-high'
-              : 'opacity-50 bg-surface-container'
+            [
+              !canUseBankTransfer ? 'w-full justify-center' : '',
+              selectedMethod === 'stripe'
+                ? 'opacity-100 bg-surface-container-high'
+                : 'opacity-50 bg-surface-container',
+            ]
           "
           @click="selectedMethod = 'stripe'"
         >
@@ -137,6 +152,7 @@ defineExpose({
           <span class="text-sm font-medium ml-2">Credit Card</span>
         </button>
         <button
+          v-if="canUseBankTransfer"
           type="button"
           class="px-4 py-2 rounded-sm transition-all duration-200"
           :class="

@@ -91,6 +91,7 @@ const DEFAULT_CHECKOUT: CheckoutConfig = {
   fallbackShippingWarning: '',
   bankDetails: '',
   bankTransferTitle: '',
+  allowBankTransfer: true,
 };
 
 const CHECKOUT_DISCOUNT_MODES: readonly CheckoutConfig['discountMode'][] = [
@@ -142,6 +143,10 @@ function mapCheckout(raw: Record<string, unknown>): CheckoutConfig {
     bankDetails: String(raw.bankDetails ?? DEFAULT_CHECKOUT.bankDetails ?? ''),
     bankTransferTitle: String(
       raw.bankTransferTitle ?? raw.BankTransferTitle ?? DEFAULT_CHECKOUT.bankTransferTitle ?? ''
+    ),
+    allowBankTransfer: boolOr(
+      raw.allowBankTransfer ?? raw.AllowBankTransfer,
+      DEFAULT_CHECKOUT.allowBankTransfer ?? true
     ),
   };
 }

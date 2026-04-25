@@ -32,6 +32,8 @@ export interface CheckoutConfig {
   bankDetails?: string;
   /** Título del botón para método de transferencia bancaria. */
   bankTransferTitle?: string;
+  /** Habilita/deshabilita el método de pago por transferencia bancaria. */
+  allowBankTransfer?: boolean;
 }
 
 /** Badges del resumen (página carrito). */
