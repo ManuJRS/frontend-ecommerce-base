@@ -145,6 +145,11 @@ async function finalizeTransferCheckoutSuccess(documentId: string): Promise<void
 }
 const { items, subtotal } = storeToRefs(cart);
 const { checkoutCopy, pageCopy } = storeToRefs(cartConfig);
+const bankTransferTitle = computed(
+  () =>
+    (checkoutCopy.value as (typeof checkoutCopy.value & { bankTransferTitle?: string }) | null)
+      ?.bankTransferTitle ?? ''
+);
 
 const shippingRates = ref<ShippingRate[]>([]);
 const selectedRate = ref<ShippingRate | null>(null);
@@ -709,6 +714,7 @@ async function handleCheckout() {
             :is-prefetching-intent="isPrefetchingStripe"
             v-model:selected-method="selectedMethod"
             :bank-details="checkoutCopy?.bankDetails"
+            :bank-transfer-title="bankTransferTitle"
           />
 
           <button
