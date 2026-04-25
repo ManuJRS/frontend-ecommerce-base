@@ -30,6 +30,8 @@ export interface CheckoutConfig {
   fallbackShippingWarning: string;
   /** Instrucciones bancarias en texto enriquecido/HTML para transferencia. */
   bankDetails?: string;
+  /** Título del botón para método de transferencia bancaria. */
+  bankTransferTitle?: string;
 }
 
 /** Badges del resumen (página carrito). */
