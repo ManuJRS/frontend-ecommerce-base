@@ -145,6 +145,11 @@ async function finalizeTransferCheckoutSuccess(documentId: string): Promise<void
 }
 const { items, subtotal } = storeToRefs(cart);
 const { checkoutCopy, pageCopy } = storeToRefs(cartConfig);
+const allowBankTransfer = computed(
+  () =>
+    (checkoutCopy.value as (typeof checkoutCopy.value & { allowBankTransfer?: boolean }) | null)
+      ?.allowBankTransfer !== false
+);
 const bankTransferTitle = computed(
   () =>
     (checkoutCopy.value as (typeof checkoutCopy.value & { bankTransferTitle?: string }) | null)
@@ -506,6 +511,16 @@ watch(
   { immediate: true }
 );
 
+watch(
+  () => allowBankTransfer.value,
+  (enabled) => {
+    if (!enabled && selectedMethod.value !== 'stripe') {
+      selectedMethod.value = 'stripe';
+    }
+  },
+  { immediate: true }
+);
+
 async function handleCheckout() {
   if (!isFormValidAndSubmitted.value) return;
 
@@ -527,7 +542,7 @@ async function handleCheckout() {
     const itemsToBuy = mapCartItemsToPaymentIntentPayload();
     const zipCode = checkoutForm.shipping.postalCode.trim();
 
-    if (method === 'stripe') {
+    if (method === 'stripe' || !allowBankTransfer.value) {
       if (!clientSecret.value || !orderDocumentId.value) {
         checkoutError.value =
           'La pasarela aún se está cargando o hubo un error. Espera un momento o cambia de método y vuelve a «Tarjeta».';
@@ -712,6 +727,7 @@ async function handleCheckout() {
             :client-secret="clientSecret"
             :stripe-return-url="stripeReturnUrl"
             :is-prefetching-intent="isPrefetchingStripe"
+            :allow-bank-transfer="allowBankTransfer"
             v-model:selected-method="selectedMethod"
             :bank-details="checkoutCopy?.bankDetails"
             :bank-transfer-title="bankTransferTitle"
