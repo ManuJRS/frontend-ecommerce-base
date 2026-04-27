@@ -4,7 +4,6 @@ import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import { useCartStore } from '../stores/cart.store';
 import { useCartConfigStore } from '../stores/cartConfig.store';
-import { resolveShippingDisplayText } from '../utils/checkoutShipping';
 import CartShippingNudge from './CartShippingNudge.vue';
 
 const cart = useCartStore();
@@ -15,14 +14,29 @@ const { checkoutCopy } = storeToRefs(cartConfig);
 
 const copy = computed(() => cartConfig.modalCopy);
 
-const displayShippingText = computed(() =>
-  resolveShippingDisplayText(
-    checkoutCopy.value,
-    copy.value?.shippingText ?? '',
-    totalItemCount.value,
-    subtotal.value
-  )
-);
+const displayShippingText = computed(() => {
+  const checkout = checkoutCopy.value;
+  if (!checkout) return 'Se calcula después...';
+
+  const shippingCfg = checkout.shippingConfiguration;
+  const discountMode = shippingCfg?.discountMode ?? checkout.discountMode ?? 'N/A';
+  const quantityDiscount = shippingCfg?.quantityDiscount ?? checkout.quantityDiscount ?? null;
+  const amountDiscount = shippingCfg?.amountDiscount ?? checkout.amountDiscount ?? null;
+  const freeText = (shippingCfg?.shippingFreeText ?? checkout.shippingFreeText ?? '').trim() || 'Gratis';
+  const fallbackText = (checkout.fallbackShippingText ?? '').trim() || 'Se calcula después...';
+
+  if (discountMode === 'discountByQuantity') {
+    const freeApplies = quantityDiscount != null && totalItemCount.value >= quantityDiscount;
+    return freeApplies ? freeText : fallbackText;
+  }
+
+  if (discountMode === 'discountByAmount') {
+    const freeApplies = amountDiscount != null && subtotal.value >= amountDiscount;
+    return freeApplies ? freeText : fallbackText;
+  }
+
+  return fallbackText;
+});
 
 function productName(p: Record<string, unknown>): string {
   return String(p.name ?? '');
@@ -114,7 +128,7 @@ onUnmounted(() => {
             <h2 id="cart-modal-title" class="text-xl font-bold font-manrope tracking-tight sm:text-2xl">
               {{ copy?.title ?? '…' }}
             </h2>
-            <span class="mt-1 block text-sm text-on-surface-variant">{{ cart.totalItemCount }} items en el carrito</span>
+            <span class="mt-1 block text-sm text-on-surface-variant">Items en el carrito: {{ cart.totalItemCount }}</span>
           </div>
           <button
             type="button"

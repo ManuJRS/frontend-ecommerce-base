@@ -19,17 +19,19 @@ function formatMoney(n: number): string {
 
 const showQuantity = computed(() => {
   const c = props.checkoutCopy;
+  const shippingCfg = c?.shippingConfiguration;
   return (
-    c?.discountMode === 'discountByQuantity' &&
-    props.totalItemCount < (c.quantityDiscount ?? 0)
+    (shippingCfg?.discountMode ?? c?.discountMode) === 'discountByQuantity' &&
+    props.totalItemCount < (shippingCfg?.quantityDiscount ?? c?.quantityDiscount ?? 0)
   );
 });
 
 const showAmount = computed(() => {
   const c = props.checkoutCopy;
+  const shippingCfg = c?.shippingConfiguration;
   return (
-    c?.discountMode === 'discountByAmount' &&
-    props.subtotal < (c.amountDiscount ?? 0)
+    (shippingCfg?.discountMode ?? c?.discountMode) === 'discountByAmount' &&
+    props.subtotal < (shippingCfg?.amountDiscount ?? c?.amountDiscount ?? 0)
   );
 });
 
@@ -38,12 +40,14 @@ const visible = computed(
 );
 
 const qtyRemaining = computed(() => {
-  const q = props.checkoutCopy?.quantityDiscount ?? 0;
+  const shippingCfg = props.checkoutCopy?.shippingConfiguration;
+  const q = shippingCfg?.quantityDiscount ?? props.checkoutCopy?.quantityDiscount ?? 0;
   return q - props.totalItemCount;
 });
 
 const amountRemaining = computed(() => {
-  const t = props.checkoutCopy?.amountDiscount ?? 0;
+  const shippingCfg = props.checkoutCopy?.shippingConfiguration;
+  const t = shippingCfg?.amountDiscount ?? props.checkoutCopy?.amountDiscount ?? 0;
   return Math.max(0, t - props.subtotal);
 });
 

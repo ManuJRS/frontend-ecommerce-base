@@ -28,6 +28,11 @@ function formatMoneyLabel(n: number): string {
 
 const availableShippingMethods = computed<ShippingMethodOption[]>(() => {
   const c = checkoutCopy.value;
+  const shippingCfg = c?.shippingConfiguration;
+  const discountMode = shippingCfg?.discountMode ?? c?.discountMode ?? 'N/A';
+  const quantityDiscount = shippingCfg?.quantityDiscount ?? c?.quantityDiscount ?? null;
+  const amountDiscount = shippingCfg?.amountDiscount ?? c?.amountDiscount ?? null;
+  const shippingFreeText = shippingCfg?.shippingFreeText ?? c?.shippingFreeText ?? '';
   const methods: ShippingMethodOption[] = [];
 
   if (!c) {
@@ -46,19 +51,19 @@ const availableShippingMethods = computed<ShippingMethodOption[]>(() => {
   const localVal = Number.isFinite(localRaw) ? localRaw : baseVal;
 
   let freeApplies = false;
-  if (c.enableFreeShipping && c.discountMode !== 'N/A') {
-    if (c.discountMode === 'discountByQuantity') {
-      const min = c.quantityDiscount;
+  if (c.enableFreeShipping && discountMode !== 'N/A') {
+    if (discountMode === 'discountByQuantity') {
+      const min = quantityDiscount;
       freeApplies = min != null && totalItemCount.value >= min;
-    } else if (c.discountMode === 'discountByAmount') {
-      const min = c.amountDiscount;
+    } else if (discountMode === 'discountByAmount') {
+      const min = amountDiscount;
       freeApplies = min != null && subtotal.value >= min;
     }
   }
 
   if (c.enableFreeShipping && freeApplies) {
     const freeLabel =
-      (c.shippingFreeText ?? '').trim() || `Envío Gratis (${formatMoneyLabel(0)})`;
+      (shippingFreeText ?? '').trim() || `Envío Gratis (${formatMoneyLabel(0)})`;
     methods.push({
       id: 'free',
       label: freeLabel,

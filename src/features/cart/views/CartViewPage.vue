@@ -4,7 +4,11 @@ import { useRoute, useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useCartStore } from '../stores/cart.store';
 import { useCartConfigStore } from '../stores/cartConfig.store';
-import { resolveShippingAmount, resolveShippingDisplayText } from '../utils/checkoutShipping';
+import {
+  isFreeShippingEligible,
+  resolveShippingAmount,
+  resolveShippingDisplayText,
+} from '../utils/checkoutShipping';
 import { StoreViewService } from '@/features/store-view/services/storeView.service';
 import CartShippingNudge from '../components/CartShippingNudge.vue';
 
@@ -16,14 +20,29 @@ const router = useRouter();
 const { items, totalItemCount, subtotal } = storeToRefs(cart);
 const { modalCopy, pageCopy, checkoutCopy } = storeToRefs(cartConfig);
 
-const displayShippingRowValue = computed(() =>
-  resolveShippingDisplayText(
-    checkoutCopy.value,
+const shippingValue = computed(() => {
+  const checkout = checkoutCopy.value;
+  const shippingCfg = checkout?.shippingConfiguration;
+
+  if (isFreeShippingEligible(checkout, totalItemCount.value, subtotal.value)) {
+    return (
+      (shippingCfg?.shippingFreeText ?? checkout?.shippingFreeText ?? '').trim() ||
+      'Gratis'
+    );
+  }
+
+  const fallbackFromSummary = (checkout?.fallbackShippingText ?? '').trim();
+  if (fallbackFromSummary) {
+    return fallbackFromSummary;
+  }
+
+  return resolveShippingDisplayText(
+    checkout,
     modalCopy.value?.shippingText ?? '',
     totalItemCount.value,
     subtotal.value
-  )
-);
+  );
+});
 
 const estimatedTax = computed(() => {
   const pct = pageCopy.value?.taxAmount ?? 0;
@@ -194,7 +213,7 @@ onMounted(() => {
       </div>
       <div class="flex justify-between text-on-surface-variant text-sm gap-4">
         <span>{{ pageCopy?.shippingRowLabel ?? '' }}</span>
-        <span class="text-right tabular-nums">{{ displayShippingRowValue }}</span>
+        <span class="text-right tabular-nums">{{ shippingValue }}</span>
       </div>
       <div class="flex justify-between text-on-surface-variant text-sm gap-4">
         <span>{{ pageCopy?.summaryTaxText ?? '' }}</span>
