@@ -11,6 +11,7 @@ import OrderSummaryCard from '@/features/checkout/components/OrderSummaryCard.vu
 import CheckoutTrustIndicators from '@/features/checkout/components/CheckoutTrustIndicators.vue';
 import PaymentDetails from '@/features/checkout/components/PaymentDetails.vue';
 import DevAddressSeeder from '@/dev/DevAddressSeeder.vue';
+import BaseShippingOption from '@/features/checkout/components/BaseShippingOption.vue';
 import { shippingService } from '@/core/api';
 
 interface ShippingRate {
@@ -156,10 +157,100 @@ const bankTransferTitle = computed(
       ?.bankTransferTitle ?? ''
 );
 
+const FREE_SHIPPING_ID = 'free-shipping';
+const BASE_SHIPPING_ID = 'base-shipping';
+
 const shippingRates = ref<ShippingRate[]>([]);
 const selectedRate = ref<ShippingRate | null>(null);
 const isLoadingRates = ref(false);
 const noCoverageMessage = ref<string | null>(null);
+const checkoutItemCount = computed(() => items.value.reduce((sum, line) => sum + line.quantity, 0));
+
+/** Envío gratis según `shippingConfiguration` (umbral por monto o por cantidad de piezas). */
+const isFreeShippingEligible = computed(() => {
+  const shippingCfg = checkoutCopy.value?.shippingConfiguration;
+  const discountMode =
+    shippingCfg?.discountMode ?? checkoutCopy.value?.discountMode ?? 'N/A';
+
+  if (discountMode === 'discountByAmount') {
+    const min =
+      shippingCfg?.amountDiscount ?? checkoutCopy.value?.amountDiscount ?? null;
+    return min != null && subtotal.value >= min;
+  }
+  if (discountMode === 'discountByQuantity') {
+    const min =
+      shippingCfg?.quantityDiscount ?? checkoutCopy.value?.quantityDiscount ?? null;
+    return min != null && checkoutItemCount.value >= min;
+  }
+  return false;
+});
+
+/** Texto configurable (Strapi `shippingConfiguration.shippingAdvice`) para la opción de envío gratis. */
+const shippingAdviceDisplay = computed(() =>
+  (checkoutCopy.value?.shippingConfiguration?.shippingAdvice ?? '').trim()
+);
+
+function createFreeShippingRate(ratesForDays: ShippingRate[]): ShippingRate {
+  const shippingCfg = checkoutCopy.value?.shippingConfiguration;
+  const label =
+    (shippingCfg?.shippingFreeText ?? checkoutCopy.value?.shippingFreeText ?? '').trim() ||
+    'Envío gratis';
+  const days =
+    ratesForDays.length > 0 ? Math.min(...ratesForDays.map((r) => r.days)) : 0;
+  return {
+    id: FREE_SHIPPING_ID,
+    carrier: label,
+    service: 'Sin cargo',
+    price: 0,
+    days,
+  };
+}
+
+/** Lista mostrada: opción de envío gratis al inicio si aplica; evita duplicar tarifas API en $0. */
+const displayShippingRates = computed(() => {
+  const raw = shippingRates.value;
+  if (!isFreeShippingEligible.value || raw.length === 0) return raw;
+  const withoutDuplicateFree = raw.filter((r) => Number(r.price) !== 0);
+  const free = createFreeShippingRate(raw);
+  return [free, ...withoutDuplicateFree];
+});
+
+function createBaseShippingRate(apiRates: ShippingRate[]): ShippingRate {
+  const c = checkoutCopy.value;
+  const rawPrice = Number(c?.baseShippingCost ?? 0);
+  const price = Number.isFinite(rawPrice) ? rawPrice : 0;
+  const carrier =
+    (c?.baseShippingTitle ?? '').trim() || 'Envío Estándar';
+  const days =
+    apiRates.length > 0 ? Math.min(...apiRates.map((r) => r.days)) : 0;
+  return {
+    id: BASE_SHIPPING_ID,
+    carrier,
+    service: 'Tarifa fija',
+    price,
+    days,
+  };
+}
+
+/** Envío estándar tienda: junto a cotizaciones Envíoclick cuando está habilitado en cart-config. */
+const baseShippingRate = computed(() => {
+  if (!checkoutCopy.value?.enableBaseShipping || shippingRates.value.length === 0) {
+    return null;
+  }
+  return createBaseShippingRate(shippingRates.value);
+});
+
+const showBaseShippingOption = computed(
+  () => Boolean(baseShippingRate.value) && !isLoadingRates.value
+);
+
+function pickShippingRateAfterFetch(parsedRates: ShippingRate[]): ShippingRate | null {
+  if (!parsedRates.length) return null;
+  if (isFreeShippingEligible.value) {
+    return createFreeShippingRate(parsedRates);
+  }
+  return pickBestRate(parsedRates);
+}
 
 function normalizeZipCode(value: string): string {
   return value.replace(/\D/g, '').slice(0, 5);
@@ -264,12 +355,12 @@ async function handleZipCodeChange(): Promise<void> {
         'No encontramos cobertura para este código postal. Mostramos una tarifa estándar de respaldo.';
       const fallbackRate = buildFallbackStandardRate();
       shippingRates.value = [fallbackRate];
-      selectedRate.value = fallbackRate;
+      selectedRate.value = pickShippingRateAfterFetch([fallbackRate]);
       return;
     }
 
     shippingRates.value = parsedRates;
-    selectedRate.value = pickBestRate(parsedRates);
+    selectedRate.value = pickShippingRateAfterFetch(parsedRates);
   } catch (error) {
     console.error('Error al obtener tarifas de envío:', error);
     checkoutError.value = 'No se pudieron obtener las tarifas de envío. Intenta nuevamente.';
@@ -278,6 +369,18 @@ async function handleZipCodeChange(): Promise<void> {
     isLoadingRates.value = false;
   }
 }
+
+watch(isFreeShippingEligible, (eligible, wasEligible) => {
+  if (!eligible && selectedRate.value?.id === FREE_SHIPPING_ID) {
+    selectedRate.value = shippingRates.value.length
+      ? pickBestRate(shippingRates.value)
+      : null;
+    return;
+  }
+  if (eligible && wasEligible === false && shippingRates.value.length > 0) {
+    selectedRate.value = createFreeShippingRate(shippingRates.value);
+  }
+});
 
 watch(
   () => checkoutForm.shipping.postalCode,
@@ -301,12 +404,27 @@ watch(
 );
 
 const shippingValue = computed(() => {
+  const shippingCfg = checkoutCopy.value?.shippingConfiguration;
+  const shippingFreeText = (
+    shippingCfg?.shippingFreeText ??
+    checkoutCopy.value?.shippingFreeText ??
+    ''
+  ).trim();
+
+  if (selectedRate.value?.id === FREE_SHIPPING_ID) {
+    return shippingFreeText || 'Gratis';
+  }
+
   const rate = selectedRate.value;
   if (!rate) {
     const c = checkoutCopy.value;
     return (c?.fallbackShippingText ?? '').trim() || 'Se calcula después...';
   }
-  return `${rate.carrier} - ${rate.service}`;
+  return Number(rate.price).toLocaleString('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 2,
+  });
 });
 
 const shippingAmount = computed(() => selectedRate.value?.price ?? 0);
@@ -646,9 +764,12 @@ async function handleCheckout() {
               <p class="text-sm text-on-surface-variant">Cotizando opciones de envío...</p>
             </div>
 
-            <div v-else-if="shippingRates.length > 0" class="space-y-3">
+            <div
+              v-else-if="displayShippingRates.length > 0 || showBaseShippingOption"
+              class="space-y-3"
+            >
               <button
-                v-for="rate in shippingRates"
+                v-for="rate in displayShippingRates"
                 :key="rate.id"
                 type="button"
                 class="w-full rounded-xl border p-4 text-left transition-all duration-200 hover:border-primary/60 hover:bg-surface-container-lowest/70"
@@ -662,7 +783,20 @@ async function handleCheckout() {
                 <div class="flex items-start justify-between gap-4">
                   <div>
                     <p class="font-semibold text-on-surface">{{ rate.carrier }} - {{ rate.service }}</p>
-                    <p class="text-xs uppercase tracking-wider text-on-surface-variant">
+                    <p
+                      v-if="
+                        rate.id === FREE_SHIPPING_ID &&
+                        isFreeShippingEligible &&
+                        shippingAdviceDisplay
+                      "
+                      class="text-xs leading-relaxed text-on-surface-variant"
+                    >
+                      {{ shippingAdviceDisplay }}
+                    </p>
+                    <p
+                      v-else
+                      class="text-xs uppercase tracking-wider text-on-surface-variant"
+                    >
                       Entrega estimada: {{ rate.days }} días
                     </p>
                   </div>
@@ -677,6 +811,13 @@ async function handleCheckout() {
                   </p>
                 </div>
               </button>
+
+              <BaseShippingOption
+                v-if="showBaseShippingOption && baseShippingRate"
+                :rate="baseShippingRate"
+                :selected="selectedRate?.id === BASE_SHIPPING_ID"
+                @select="(r) => (selectedRate = r)"
+              />
             </div>
 
             <p

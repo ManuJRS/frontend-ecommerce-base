@@ -19,6 +19,8 @@ export interface CheckoutConfig {
   enableFreeShipping: boolean;
   /** Costo base de envío cuando no aplica envío gratis. */
   baseShippingCost: number | null;
+  /** Título de la opción de envío estándar en checkout (vacío = «Envío Estándar»). */
+  baseShippingTitle: string;
   /** Costo de envío local cuando el prefijo del código postal coincide. */
   localShippingCost: number | null;
   /** Prefijos separados por coma para envío local. */
@@ -34,6 +36,15 @@ export interface CheckoutConfig {
   bankTransferTitle?: string;
   /** Habilita/deshabilita el método de pago por transferencia bancaria. */
   allowBankTransfer?: boolean;
+  /** Configuración de descuentos de envío (componente `shippingConfiguration` en Strapi). */
+  shippingConfiguration?: {
+    discountMode: 'N/A' | 'discountByQuantity' | 'discountByAmount';
+    quantityDiscount: number | null;
+    amountDiscount: number | null;
+    shippingFreeText: string;
+    /** Texto de ayuda/aviso mostrado en checkout cuando aplica envío gratuito (Strapi). */
+    shippingAdvice: string;
+  };
 }
 
 /** Badges del resumen (página carrito). */

@@ -84,6 +84,7 @@ const DEFAULT_CHECKOUT: CheckoutConfig = {
   enableLocalShipping: false,
   enableFreeShipping: false,
   baseShippingCost: 0,
+  baseShippingTitle: '',
   localShippingCost: 0,
   localZipCodes: '',
   shippingFreeText: '',
@@ -113,32 +114,49 @@ function boolOr(raw: unknown, fallback: boolean): boolean {
   return fallback;
 }
 
-function mapCheckout(raw: Record<string, unknown>): CheckoutConfig {
-  const mode = raw.discountMode;
+function mapCheckout(
+  raw: Record<string, unknown>,
+  summaryResume?: Record<string, unknown>,
+  shippingConfiguration?: Record<string, unknown>
+): CheckoutConfig {
+  const mode = shippingConfiguration?.discountMode ?? raw.discountMode;
   const discountMode =
     typeof mode === 'string' &&
     (CHECKOUT_DISCOUNT_MODES as readonly string[]).includes(mode)
       ? (mode as CheckoutConfig['discountMode'])
       : DEFAULT_CHECKOUT.discountMode;
 
-  const amountRaw = raw.amountDiscount ?? raw.discountByAmount;
+  const amountRaw =
+    shippingConfiguration?.amountDiscount ??
+    shippingConfiguration?.discountByAmount ??
+    raw.amountDiscount ??
+    raw.discountByAmount;
+  const quantityRaw = shippingConfiguration?.quantityDiscount ?? raw.quantityDiscount;
+  const shippingFreeTextRaw = shippingConfiguration?.shippingFreeText ?? raw.shippingFreeText;
+  const shippingAdviceRaw =
+    shippingConfiguration?.shippingAdvice ?? raw.shippingAdvice;
 
   return {
     discountMode,
-    quantityDiscount: numOrNull(raw.quantityDiscount),
+    quantityDiscount: numOrNull(quantityRaw),
     amountDiscount: numOrNull(amountRaw),
     enableBaseShipping: boolOr(raw.enableBaseShipping, DEFAULT_CHECKOUT.enableBaseShipping),
     enableLocalShipping: boolOr(raw.enableLocalShipping, DEFAULT_CHECKOUT.enableLocalShipping),
     enableFreeShipping: boolOr(raw.enableFreeShipping, DEFAULT_CHECKOUT.enableFreeShipping),
     baseShippingCost: numOrNull(raw.baseShippingCost) ?? DEFAULT_CHECKOUT.baseShippingCost,
+    baseShippingTitle: String(raw.baseShippingTitle ?? DEFAULT_CHECKOUT.baseShippingTitle),
     localShippingCost: numOrNull(raw.localShippingCost) ?? DEFAULT_CHECKOUT.localShippingCost,
     localZipCodes: String(raw.localZipCodes ?? DEFAULT_CHECKOUT.localZipCodes),
-    shippingFreeText: String(raw.shippingFreeText ?? DEFAULT_CHECKOUT.shippingFreeText),
+    shippingFreeText: String(shippingFreeTextRaw ?? DEFAULT_CHECKOUT.shippingFreeText),
     fallbackShippingText: String(
-      raw.fallbackShippingText ?? DEFAULT_CHECKOUT.fallbackShippingText
+      summaryResume?.fallbackShippingText ??
+        raw.fallbackShippingText ??
+        DEFAULT_CHECKOUT.fallbackShippingText
     ),
     fallbackShippingWarning: String(
-      raw.fallbackShippingWarning ?? DEFAULT_CHECKOUT.fallbackShippingWarning
+      summaryResume?.fallbackShippingWarning ??
+        raw.fallbackShippingWarning ??
+        DEFAULT_CHECKOUT.fallbackShippingWarning
     ),
     bankDetails: String(raw.bankDetails ?? DEFAULT_CHECKOUT.bankDetails ?? ''),
     bankTransferTitle: String(
@@ -148,6 +166,13 @@ function mapCheckout(raw: Record<string, unknown>): CheckoutConfig {
       raw.allowBankTransfer ?? raw.AllowBankTransfer,
       DEFAULT_CHECKOUT.allowBankTransfer ?? true
     ),
+    shippingConfiguration: {
+      discountMode,
+      quantityDiscount: numOrNull(quantityRaw),
+      amountDiscount: numOrNull(amountRaw),
+      shippingFreeText: String(shippingFreeTextRaw ?? DEFAULT_CHECKOUT.shippingFreeText),
+      shippingAdvice: String(shippingAdviceRaw ?? ''),
+    },
   };
 }
 
@@ -165,30 +190,44 @@ function mapModal(modal: Record<string, unknown>): CartModalConfig {
   };
 }
 
-function mapPage(data: Record<string, unknown>): CartPageCopy {
+function mapPage(data: Record<string, unknown>, summaryResume?: Record<string, unknown>): CartPageCopy {
   return {
     slug: String(data.slug ?? DEFAULT_PAGE.slug),
     pageTitle: String(data.pageTitle ?? DEFAULT_PAGE.pageTitle),
     pageDescription: String(data.pageDescription ?? DEFAULT_PAGE.pageDescription),
     orderSummaryTitle: String(
-      data.sumaryShippingText ?? data.summaryTitle ?? DEFAULT_PAGE.orderSummaryTitle
+      summaryResume?.sumaryShippingText ??
+        summaryResume?.summaryTitle ??
+        data.sumaryShippingText ??
+        data.summaryTitle ??
+        DEFAULT_PAGE.orderSummaryTitle
     ),
     summarySubtotalText: String(
-      data.summarySubtotalText ?? DEFAULT_PAGE.summarySubtotalText
+      summaryResume?.summarySubtotalText ??
+        data.summarySubtotalText ??
+        DEFAULT_PAGE.summarySubtotalText
     ),
     shippingRowLabel: String(
-      data.summaryShippingText ?? DEFAULT_PAGE.shippingRowLabel
+      summaryResume?.summaryShippingText ??
+        data.summaryShippingText ??
+        DEFAULT_PAGE.shippingRowLabel
     ),
-    summaryTaxText: String(data.summaryTaxText ?? DEFAULT_PAGE.summaryTaxText),
+    summaryTaxText: String(
+      summaryResume?.summaryTaxText ?? data.summaryTaxText ?? DEFAULT_PAGE.summaryTaxText
+    ),
     taxAmount: (() => {
       const n = Number(data.taxAmount);
       return Number.isFinite(n) ? n : DEFAULT_PAGE.taxAmount;
     })(),
     summaryBtnCheckout: String(
-      data.summaryBtnCheckout ?? DEFAULT_PAGE.summaryBtnCheckout
+      summaryResume?.summaryBtnCheckout ??
+        data.summaryBtnCheckout ??
+        DEFAULT_PAGE.summaryBtnCheckout
     ),
-    summaryMessage: String(data.summaryMessage ?? DEFAULT_PAGE.summaryMessage),
-    summaryBadge: mapSummaryBadges(data.summaryBadge),
+    summaryMessage: String(
+      summaryResume?.summaryMessage ?? data.summaryMessage ?? DEFAULT_PAGE.summaryMessage
+    ),
+    summaryBadge: mapSummaryBadges(summaryResume?.summaryBadge ?? data.summaryBadge),
   };
 }
 
@@ -198,9 +237,14 @@ export const CartConfigService = {
       {
         populate: {
           cartModal: true,
-          summaryBadge: {
-            populate: ['svg'],
+          SummaryResume: {
+            populate: {
+              summaryBadge: {
+                populate: ['svg']
+              }
+            }
           },
+          shippingConfiguration: { populate: '*' }
         },
       },
       { encodeValuesOnly: true }
@@ -213,15 +257,20 @@ export const CartConfigService = {
 
       const modalRaw = data.cartModal;
       const modalFlat = unwrapComponent(modalRaw);
+      const summaryResumeRaw = data.SummaryResume ?? data.summaryResume;
+      const summaryResume = unwrapComponent(summaryResumeRaw);
+      const shippingConfigurationRaw =
+        data.shippingConfiguration ?? data.ShippingConfiguration;
+      const shippingConfiguration = unwrapComponent(shippingConfigurationRaw);
       const cartModal =
         modalFlat && Object.keys(modalFlat).length > 0
           ? mapModal(modalFlat)
           : DEFAULT_MODAL;
 
       /** Reglas de envío: vienen en la misma entidad `cart-config`, no anidadas en otro recurso. */
-      const checkoutConfig = mapCheckout(data);
+      const checkoutConfig = mapCheckout(data, summaryResume, shippingConfiguration);
 
-      const page = mapPage(data);
+      const page = mapPage(data, summaryResume);
 
       return { cartModal, checkoutConfig, page };
     } catch {
