@@ -42,7 +42,7 @@ const isTransferPayment = computed(() => detectedPaymentMethod.value === 'transf
 const isCopyingBankDetails = ref(false);
 const hasCopiedBankDetails = ref(false);
 const bankDetailsHtml = computed(() => {
-  const raw = checkoutCopy.value?.bankDetails;
+  const raw = checkoutCopy.value?.shippingMethods?.bankDetails;
   if (!raw || !String(raw).trim()) return '';
   return renderProductDescriptionMarkdown(raw);
 });

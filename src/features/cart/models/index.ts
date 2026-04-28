@@ -8,12 +8,9 @@ export interface CartModalConfig {
   emptyMessage: string;
 }
 
-/** Reglas de envío / descuentos: campos en la entrada `cart-config` (mismo nivel que el resto). */
-export interface CheckoutConfig {
-  discountMode: 'N/A' | 'discountByQuantity' | 'discountByAmount';
-  quantityDiscount: number | null;
-  /** Umbral de subtotal para envío gratuito (modo `discountByAmount`). */
-  amountDiscount: number | null;
+/** Métodos de envío y pago (componente `shippingMethods` en cart-config Strapi). */
+export interface ShippingMethodsConfig {
+  enableEnvioclick: boolean;
   enableBaseShipping: boolean;
   enableLocalShipping: boolean;
   enableFreeShipping: boolean;
@@ -25,17 +22,28 @@ export interface CheckoutConfig {
   localShippingCost: number | null;
   /** Prefijos separados por coma para envío local. */
   localZipCodes: string;
+  bankDetails: string;
+  bankTransferTitle: string;
+  allowBankTransfer: boolean;
+}
+
+/** Reglas de envío / descuentos: campos en la entrada `cart-config` (mismo nivel que el resto). */
+export interface CheckoutConfig {
+  discountMode: 'N/A' | 'discountByQuantity' | 'discountByAmount';
+  quantityDiscount: number | null;
+  /** Umbral de subtotal para envío gratuito (modo `discountByAmount`). */
+  amountDiscount: number | null;
+  /** Envío local/base, transferencia y flags (Strapi `shippingMethods`). */
+  shippingMethods: ShippingMethodsConfig;
+  /** Configuración de impuestos/moneda (componente `taxAndCurrency` en Strapi). */
+  taxAndCurrency: {
+    taxAmount: number;
+  };
   shippingFreeText: string;
   /** Texto cuando el envío no pudo calcularse en checkout. */
   fallbackShippingText: string;
   /** Advertencia mostrada cuando aplica fallback de envío. */
   fallbackShippingWarning: string;
-  /** Instrucciones bancarias en texto enriquecido/HTML para transferencia. */
-  bankDetails?: string;
-  /** Título del botón para método de transferencia bancaria. */
-  bankTransferTitle?: string;
-  /** Habilita/deshabilita el método de pago por transferencia bancaria. */
-  allowBankTransfer?: boolean;
   /** Configuración de descuentos de envío (componente `shippingConfiguration` en Strapi). */
   shippingConfiguration?: {
     discountMode: 'N/A' | 'discountByQuantity' | 'discountByAmount';

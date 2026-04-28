@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
-import type { CartModalConfig, CartPageCopy, CheckoutConfig } from '../models';
+import { computed, ref } from 'vue';
+import type { CartModalConfig, CartPageCopy, CheckoutConfig, ShippingMethodsConfig } from '../models';
 import { CartConfigService } from '../services/cartConfig.service';
 
 export const useCartConfigStore = defineStore('cartConfig', () => {
@@ -40,9 +40,22 @@ export const useCartConfigStore = defineStore('cartConfig', () => {
     return pageCopy.value.slug === slug;
   }
 
+  /** Envío base/local y métodos de pago (cart-config → `shippingMethods`). */
+  const shippingMethods = computed<ShippingMethodsConfig | null>(() => {
+    return checkoutCopy.value?.shippingMethods ?? null;
+  });
+
+  /** IVA (%): `taxAndCurrency.taxAmount` con fallback 16. */
+  const taxAmount = computed<number>(() => {
+    const value = checkoutCopy.value?.taxAndCurrency?.taxAmount;
+    return Number.isFinite(Number(value)) ? Number(value) : 16;
+  });
+
   return {
     modalCopy,
     checkoutCopy,
+    shippingMethods,
+    taxAmount,
     pageCopy,
     loaded,
     loading,
