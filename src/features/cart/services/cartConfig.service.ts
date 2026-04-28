@@ -5,6 +5,7 @@ import type {
   CartModalConfig,
   CheckoutConfig,
   CartPageCopy,
+  ShippingMethodsConfig,
   SummaryBadgeItem,
 } from '../models';
 
@@ -76,10 +77,8 @@ const DEFAULT_PAGE: CartPageCopy = {
   summaryBadge: [],
 };
 
-const DEFAULT_CHECKOUT: CheckoutConfig = {
-  discountMode: 'N/A',
-  quantityDiscount: null,
-  amountDiscount: null,
+const DEFAULT_SHIPPING_METHODS: ShippingMethodsConfig = {
+  enableEnvioclick: false,
   enableBaseShipping: false,
   enableLocalShipping: false,
   enableFreeShipping: false,
@@ -87,12 +86,20 @@ const DEFAULT_CHECKOUT: CheckoutConfig = {
   baseShippingTitle: '',
   localShippingCost: 0,
   localZipCodes: '',
-  shippingFreeText: '',
-  fallbackShippingText: '',
-  fallbackShippingWarning: '',
   bankDetails: '',
   bankTransferTitle: '',
   allowBankTransfer: true,
+};
+
+const DEFAULT_CHECKOUT: CheckoutConfig = {
+  discountMode: 'N/A',
+  quantityDiscount: null,
+  amountDiscount: null,
+  shippingMethods: { ...DEFAULT_SHIPPING_METHODS },
+  taxAndCurrency: { taxAmount: 16 },
+  shippingFreeText: '',
+  fallbackShippingText: '',
+  fallbackShippingWarning: '',
 };
 
 const CHECKOUT_DISCOUNT_MODES: readonly CheckoutConfig['discountMode'][] = [
@@ -114,10 +121,62 @@ function boolOr(raw: unknown, fallback: boolean): boolean {
   return fallback;
 }
 
+function mapShippingMethods(
+  shippingMethodsFromCms: Record<string, unknown> | undefined,
+  raw: Record<string, unknown>
+): ShippingMethodsConfig {
+  const sm =
+    shippingMethodsFromCms && Object.keys(shippingMethodsFromCms).length > 0
+      ? shippingMethodsFromCms
+      : {};
+  return {
+    enableEnvioclick: boolOr(
+      sm.enableEnvioclick ?? sm.EnableEnvioclick ?? raw.enableEnvioclick ?? raw.EnableEnvioclick,
+      DEFAULT_SHIPPING_METHODS.enableEnvioclick
+    ),
+    enableBaseShipping: boolOr(
+      sm.enableBaseShipping ?? raw.enableBaseShipping,
+      DEFAULT_SHIPPING_METHODS.enableBaseShipping
+    ),
+    enableLocalShipping: boolOr(
+      sm.enableLocalShipping ?? raw.enableLocalShipping,
+      DEFAULT_SHIPPING_METHODS.enableLocalShipping
+    ),
+    enableFreeShipping: boolOr(
+      sm.enableFreeShipping ?? raw.enableFreeShipping,
+      DEFAULT_SHIPPING_METHODS.enableFreeShipping
+    ),
+    baseShippingCost:
+      numOrNull(sm.baseShippingCost ?? raw.baseShippingCost) ??
+      DEFAULT_SHIPPING_METHODS.baseShippingCost,
+    baseShippingTitle: String(
+      sm.baseShippingTitle ?? raw.baseShippingTitle ?? DEFAULT_SHIPPING_METHODS.baseShippingTitle
+    ),
+    localShippingCost:
+      numOrNull(sm.localShippingCost ?? raw.localShippingCost) ??
+      DEFAULT_SHIPPING_METHODS.localShippingCost,
+    localZipCodes: String(sm.localZipCodes ?? raw.localZipCodes ?? DEFAULT_SHIPPING_METHODS.localZipCodes),
+    bankDetails: String(sm.bankDetails ?? raw.bankDetails ?? DEFAULT_SHIPPING_METHODS.bankDetails),
+    bankTransferTitle: String(
+      sm.bankTransferTitle ??
+        sm.BankTransferTitle ??
+        raw.bankTransferTitle ??
+        raw.BankTransferTitle ??
+        DEFAULT_SHIPPING_METHODS.bankTransferTitle
+    ),
+    allowBankTransfer: boolOr(
+      sm.allowBankTransfer ?? sm.AllowBankTransfer ?? raw.allowBankTransfer ?? raw.AllowBankTransfer,
+      DEFAULT_SHIPPING_METHODS.allowBankTransfer
+    ),
+  };
+}
+
 function mapCheckout(
   raw: Record<string, unknown>,
   summaryResume?: Record<string, unknown>,
-  shippingConfiguration?: Record<string, unknown>
+  shippingConfiguration?: Record<string, unknown>,
+  shippingMethodsFromCms?: Record<string, unknown>,
+  taxAndCurrencyFromCms?: Record<string, unknown>
 ): CheckoutConfig {
   const mode = shippingConfiguration?.discountMode ?? raw.discountMode;
   const discountMode =
@@ -135,18 +194,17 @@ function mapCheckout(
   const shippingFreeTextRaw = shippingConfiguration?.shippingFreeText ?? raw.shippingFreeText;
   const shippingAdviceRaw =
     shippingConfiguration?.shippingAdvice ?? raw.shippingAdvice;
+  const taxAmountRaw = taxAndCurrencyFromCms?.taxAmount ?? raw.taxAmount;
+  const taxAmount = Number(taxAmountRaw);
 
   return {
     discountMode,
     quantityDiscount: numOrNull(quantityRaw),
     amountDiscount: numOrNull(amountRaw),
-    enableBaseShipping: boolOr(raw.enableBaseShipping, DEFAULT_CHECKOUT.enableBaseShipping),
-    enableLocalShipping: boolOr(raw.enableLocalShipping, DEFAULT_CHECKOUT.enableLocalShipping),
-    enableFreeShipping: boolOr(raw.enableFreeShipping, DEFAULT_CHECKOUT.enableFreeShipping),
-    baseShippingCost: numOrNull(raw.baseShippingCost) ?? DEFAULT_CHECKOUT.baseShippingCost,
-    baseShippingTitle: String(raw.baseShippingTitle ?? DEFAULT_CHECKOUT.baseShippingTitle),
-    localShippingCost: numOrNull(raw.localShippingCost) ?? DEFAULT_CHECKOUT.localShippingCost,
-    localZipCodes: String(raw.localZipCodes ?? DEFAULT_CHECKOUT.localZipCodes),
+    shippingMethods: mapShippingMethods(shippingMethodsFromCms, raw),
+    taxAndCurrency: {
+      taxAmount: Number.isFinite(taxAmount) ? taxAmount : DEFAULT_CHECKOUT.taxAndCurrency.taxAmount,
+    },
     shippingFreeText: String(shippingFreeTextRaw ?? DEFAULT_CHECKOUT.shippingFreeText),
     fallbackShippingText: String(
       summaryResume?.fallbackShippingText ??
@@ -157,14 +215,6 @@ function mapCheckout(
       summaryResume?.fallbackShippingWarning ??
         raw.fallbackShippingWarning ??
         DEFAULT_CHECKOUT.fallbackShippingWarning
-    ),
-    bankDetails: String(raw.bankDetails ?? DEFAULT_CHECKOUT.bankDetails ?? ''),
-    bankTransferTitle: String(
-      raw.bankTransferTitle ?? raw.BankTransferTitle ?? DEFAULT_CHECKOUT.bankTransferTitle ?? ''
-    ),
-    allowBankTransfer: boolOr(
-      raw.allowBankTransfer ?? raw.AllowBankTransfer,
-      DEFAULT_CHECKOUT.allowBankTransfer ?? true
     ),
     shippingConfiguration: {
       discountMode,
@@ -244,7 +294,9 @@ export const CartConfigService = {
               }
             }
           },
-          shippingConfiguration: { populate: '*' }
+          shippingConfiguration: { populate: '*' },
+          shippingMethods: { populate: '*' },
+          taxAndCurrency: { populate: '*' }
         },
       },
       { encodeValuesOnly: true }
@@ -262,13 +314,23 @@ export const CartConfigService = {
       const shippingConfigurationRaw =
         data.shippingConfiguration ?? data.ShippingConfiguration;
       const shippingConfiguration = unwrapComponent(shippingConfigurationRaw);
+      const shippingMethodsRaw = data.shippingMethods ?? data.ShippingMethods;
+      const shippingMethodsFlat = unwrapComponent(shippingMethodsRaw);
+      const taxAndCurrencyRaw = data.taxAndCurrency ?? data.TaxAndCurrency;
+      const taxAndCurrencyFlat = unwrapComponent(taxAndCurrencyRaw);
       const cartModal =
         modalFlat && Object.keys(modalFlat).length > 0
           ? mapModal(modalFlat)
           : DEFAULT_MODAL;
 
       /** Reglas de envío: vienen en la misma entidad `cart-config`, no anidadas en otro recurso. */
-      const checkoutConfig = mapCheckout(data, summaryResume, shippingConfiguration);
+      const checkoutConfig = mapCheckout(
+        data,
+        summaryResume,
+        shippingConfiguration,
+        shippingMethodsFlat,
+        taxAndCurrencyFlat
+      );
 
       const page = mapPage(data, summaryResume);
 

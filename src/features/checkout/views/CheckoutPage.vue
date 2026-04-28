@@ -145,20 +145,17 @@ async function finalizeTransferCheckoutSuccess(documentId: string): Promise<void
   });
 }
 const { items, subtotal } = storeToRefs(cart);
-const { checkoutCopy, pageCopy } = storeToRefs(cartConfig);
+const { checkoutCopy, pageCopy, taxAmount } = storeToRefs(cartConfig);
 const allowBankTransfer = computed(
-  () =>
-    (checkoutCopy.value as (typeof checkoutCopy.value & { allowBankTransfer?: boolean }) | null)
-      ?.allowBankTransfer !== false
+  () => checkoutCopy.value?.shippingMethods?.allowBankTransfer !== false
 );
 const bankTransferTitle = computed(
-  () =>
-    (checkoutCopy.value as (typeof checkoutCopy.value & { bankTransferTitle?: string }) | null)
-      ?.bankTransferTitle ?? ''
+  () => checkoutCopy.value?.shippingMethods?.bankTransferTitle ?? ''
 );
 
 const FREE_SHIPPING_ID = 'free-shipping';
 const BASE_SHIPPING_ID = 'base-shipping';
+const LOCAL_SHIPPING_ID = 'local-shipping';
 
 const shippingRates = ref<ShippingRate[]>([]);
 const selectedRate = ref<ShippingRate | null>(null);
@@ -208,6 +205,7 @@ function createFreeShippingRate(ratesForDays: ShippingRate[]): ShippingRate {
 
 /** Lista mostrada: opción de envío gratis al inicio si aplica; evita duplicar tarifas API en $0. */
 const displayShippingRates = computed(() => {
+  if (!checkoutCopy.value?.shippingMethods?.enableEnvioclick) return [];
   const raw = shippingRates.value;
   if (!isFreeShippingEligible.value || raw.length === 0) return raw;
   const withoutDuplicateFree = raw.filter((r) => Number(r.price) !== 0);
@@ -216,11 +214,11 @@ const displayShippingRates = computed(() => {
 });
 
 function createBaseShippingRate(apiRates: ShippingRate[]): ShippingRate {
-  const c = checkoutCopy.value;
-  const rawPrice = Number(c?.baseShippingCost ?? 0);
+  const sm = checkoutCopy.value?.shippingMethods;
+  const rawPrice = Number(sm?.baseShippingCost ?? 0);
   const price = Number.isFinite(rawPrice) ? rawPrice : 0;
   const carrier =
-    (c?.baseShippingTitle ?? '').trim() || 'Envío Estándar';
+    (sm?.baseShippingTitle ?? '').trim() || 'Envío Estándar';
   const days =
     apiRates.length > 0 ? Math.min(...apiRates.map((r) => r.days)) : 0;
   return {
@@ -234,7 +232,7 @@ function createBaseShippingRate(apiRates: ShippingRate[]): ShippingRate {
 
 /** Envío estándar tienda: junto a cotizaciones Envíoclick cuando está habilitado en cart-config. */
 const baseShippingRate = computed(() => {
-  if (!checkoutCopy.value?.enableBaseShipping || shippingRates.value.length === 0) {
+  if (!checkoutCopy.value?.shippingMethods?.enableBaseShipping || shippingRates.value.length === 0) {
     return null;
   }
   return createBaseShippingRate(shippingRates.value);
@@ -244,10 +242,53 @@ const showBaseShippingOption = computed(
   () => Boolean(baseShippingRate.value) && !isLoadingRates.value
 );
 
+const isLocalShippingZipMatch = computed(() => {
+  const sm = checkoutCopy.value?.shippingMethods;
+  if (!sm?.enableLocalShipping) return false;
+  const zip = normalizeZipCode(checkoutForm.shipping.postalCode);
+  if (zip.length !== 5) return false;
+  const prefixes = (sm.localZipCodes ?? '')
+    .split(',')
+    .map((prefix) => prefix.trim())
+    .filter(Boolean);
+  return prefixes.some((prefix) => zip.startsWith(prefix));
+});
+
+function createLocalShippingRate(apiRates: ShippingRate[]): ShippingRate {
+  const sm = checkoutCopy.value?.shippingMethods;
+  const baseRaw = Number(sm?.baseShippingCost ?? 0);
+  const basePrice = Number.isFinite(baseRaw) ? baseRaw : 0;
+  const localRaw = Number(sm?.localShippingCost ?? basePrice);
+  const localPrice = Number.isFinite(localRaw) ? localRaw : basePrice;
+  const days = apiRates.length > 0 ? Math.min(...apiRates.map((r) => r.days)) : 0;
+  return {
+    id: LOCAL_SHIPPING_ID,
+    carrier: 'Envío Local',
+    service: 'Tarifa local',
+    price: localPrice,
+    days,
+  };
+}
+
+const localShippingRate = computed(() => {
+  if (!isLocalShippingZipMatch.value || shippingRates.value.length === 0) return null;
+  return createLocalShippingRate(shippingRates.value);
+});
+
+const showLocalShippingOption = computed(
+  () => Boolean(localShippingRate.value) && !isLoadingRates.value
+);
+
 function pickShippingRateAfterFetch(parsedRates: ShippingRate[]): ShippingRate | null {
   if (!parsedRates.length) return null;
+  if (!checkoutCopy.value?.shippingMethods?.enableEnvioclick) {
+    return null;
+  }
   if (isFreeShippingEligible.value) {
     return createFreeShippingRate(parsedRates);
+  }
+  if (isLocalShippingZipMatch.value) {
+    return createLocalShippingRate(parsedRates);
   }
   return pickBestRate(parsedRates);
 }
@@ -317,7 +358,7 @@ function pickBestRate(rates: ShippingRate[]): ShippingRate | null {
 }
 
 function buildFallbackStandardRate(): ShippingRate {
-  const baseShipping = Number(checkoutCopy.value?.baseShippingCost ?? 0);
+  const baseShipping = Number(checkoutCopy.value?.shippingMethods?.baseShippingCost ?? 0);
   const fallbackPrice = Number.isFinite(baseShipping) ? baseShipping : 0;
   return {
     id: 'standard_fallback',
@@ -382,6 +423,21 @@ watch(isFreeShippingEligible, (eligible, wasEligible) => {
   }
 });
 
+watch(isLocalShippingZipMatch, (eligible, wasEligible) => {
+  if (!eligible && selectedRate.value?.id === LOCAL_SHIPPING_ID) {
+    selectedRate.value = shippingRates.value.length ? pickBestRate(shippingRates.value) : null;
+    return;
+  }
+  if (
+    eligible &&
+    wasEligible === false &&
+    shippingRates.value.length > 0 &&
+    !isFreeShippingEligible.value
+  ) {
+    selectedRate.value = createLocalShippingRate(shippingRates.value);
+  }
+});
+
 watch(
   () => checkoutForm.shipping.postalCode,
   (nextZipCode, prevZipCode) => {
@@ -432,7 +488,7 @@ const orderTotal = computed(() => subtotal.value + shippingAmount.value);
 const isFallbackShipping = computed(() => !selectedRate.value);
 
 const estimatedTax = computed(() => {
-  const pct = pageCopy.value?.taxAmount ?? 0;
+  const pct = taxAmount.value;
   const taxableBase = orderTotal.value;
   return taxableBase * (pct / 100);
 });
@@ -630,6 +686,26 @@ watch(
 );
 
 watch(
+  // 1. Solo observamos las propiedades "puras"
+  () => [
+    checkoutCopy.value?.shippingMethods?.enableEnvioclick, 
+    checkoutForm.shipping.postalCode
+  ],
+  async ([enabled, zip]) => {
+    // 2. Hacemos el trim y la limpieza dentro del callback
+    const cleanZip = zip?.toString().trim() || '';
+    
+    console.log('[checkout] Re-evaluando envío:', { enabled, cleanZip });
+
+    if (enabled && cleanZip.length === 5) {
+      console.log('🚀 Disparando consulta de tarifas...');
+      await handleZipCodeChange(); 
+    }
+  },
+  { immediate: true, deep: true }
+);
+
+watch(
   () => allowBankTransfer.value,
   (enabled) => {
     if (!enabled && selectedMethod.value !== 'stripe') {
@@ -765,7 +841,7 @@ async function handleCheckout() {
             </div>
 
             <div
-              v-else-if="displayShippingRates.length > 0 || showBaseShippingOption"
+              v-else-if="displayShippingRates.length > 0 || showLocalShippingOption || showBaseShippingOption"
               class="space-y-3"
             >
               <button
@@ -816,6 +892,13 @@ async function handleCheckout() {
                 v-if="showBaseShippingOption && baseShippingRate"
                 :rate="baseShippingRate"
                 :selected="selectedRate?.id === BASE_SHIPPING_ID"
+                @select="(r) => (selectedRate = r)"
+              />
+
+              <BaseShippingOption
+                v-if="showLocalShippingOption && localShippingRate"
+                :rate="localShippingRate"
+                :selected="selectedRate?.id === LOCAL_SHIPPING_ID"
                 @select="(r) => (selectedRate = r)"
               />
             </div>
@@ -870,7 +953,7 @@ async function handleCheckout() {
             :is-prefetching-intent="isPrefetchingStripe"
             :allow-bank-transfer="allowBankTransfer"
             v-model:selected-method="selectedMethod"
-            :bank-details="checkoutCopy?.bankDetails"
+            :bank-details="checkoutCopy?.shippingMethods?.bankDetails"
             :bank-transfer-title="bankTransferTitle"
           />
 

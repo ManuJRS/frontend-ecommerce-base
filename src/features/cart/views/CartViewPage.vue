@@ -18,7 +18,7 @@ const route = useRoute();
 const router = useRouter();
 
 const { items, totalItemCount, subtotal } = storeToRefs(cart);
-const { modalCopy, pageCopy, checkoutCopy } = storeToRefs(cartConfig);
+const { modalCopy, pageCopy, checkoutCopy, taxAmount } = storeToRefs(cartConfig);
 
 const shippingValue = computed(() => {
   const checkout = checkoutCopy.value;
@@ -45,7 +45,7 @@ const shippingValue = computed(() => {
 });
 
 const estimatedTax = computed(() => {
-  const pct = pageCopy.value?.taxAmount ?? 0;
+  const pct = taxAmount.value;
   return subtotal.value * (pct / 100);
 });
 const shippingAmount = computed(() =>

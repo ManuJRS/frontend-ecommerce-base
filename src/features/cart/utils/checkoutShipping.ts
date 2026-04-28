@@ -33,13 +33,14 @@ export function resolveShippingAmount(
   const discountMode = shippingCfg?.discountMode ?? checkout?.discountMode ?? 'N/A';
   const quantityDiscount = shippingCfg?.quantityDiscount ?? checkout?.quantityDiscount ?? null;
   const amountDiscount = shippingCfg?.amountDiscount ?? checkout?.amountDiscount ?? null;
-  const baseShippingCost = Number(checkout?.baseShippingCost ?? 0);
-  const localShippingCost = Number(checkout?.localShippingCost ?? baseShippingCost);
+  const sm = checkout?.shippingMethods;
+  const baseShippingCost = Number(sm?.baseShippingCost ?? 0);
+  const localShippingCost = Number(sm?.localShippingCost ?? baseShippingCost);
   const paidAmount = Number.isFinite(baseShippingCost) ? baseShippingCost : 0;
   const localAmount = Number.isFinite(localShippingCost) ? localShippingCost : paidAmount;
 
   const cleanedZip = zipCode.trim();
-  const localPrefixes = (checkout?.localZipCodes ?? '')
+  const localPrefixes = (sm?.localZipCodes ?? '')
     .split(',')
     .map((prefix) => prefix.trim())
     .filter(Boolean);

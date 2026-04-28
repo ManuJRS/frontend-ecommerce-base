@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
+import { useCartConfigStore } from './cartConfig.store';
+import type { ShippingMethodsConfig } from '../models';
 
 /** Línea del carrito: snapshot JSON del producto (Strapi) + cantidad. */
 export interface CartLineItem {
@@ -19,6 +21,13 @@ function unitPrice(product: Record<string, unknown>): number {
 }
 
 export const useCartStore = defineStore('cart', () => {
+  const cartConfig = useCartConfigStore();
+
+  /** Config cart-config (`shippingMethods`): envío base/local y transferencia (lectura desde Pinia cartConfig). */
+  const shippingMethods = computed<ShippingMethodsConfig | null>(() => {
+    return cartConfig.checkoutCopy?.shippingMethods ?? null;
+  });
+
   const items = ref<CartLineItem[]>([]);
   const drawerOpen = ref(false);
   const activeClientSecret = ref<string | null>(null);
@@ -103,6 +112,7 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   return {
+    shippingMethods,
     items,
     drawerOpen,
     activeClientSecret,

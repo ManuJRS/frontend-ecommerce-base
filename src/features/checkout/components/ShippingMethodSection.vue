@@ -29,13 +29,14 @@ function formatMoneyLabel(n: number): string {
 const availableShippingMethods = computed<ShippingMethodOption[]>(() => {
   const c = checkoutCopy.value;
   const shippingCfg = c?.shippingConfiguration;
+  const sm = c?.shippingMethods;
   const discountMode = shippingCfg?.discountMode ?? c?.discountMode ?? 'N/A';
   const quantityDiscount = shippingCfg?.quantityDiscount ?? c?.quantityDiscount ?? null;
   const amountDiscount = shippingCfg?.amountDiscount ?? c?.amountDiscount ?? null;
   const shippingFreeText = shippingCfg?.shippingFreeText ?? c?.shippingFreeText ?? '';
   const methods: ShippingMethodOption[] = [];
 
-  if (!c) {
+  if (!c || !sm) {
     return [
       {
         id: 'fallback',
@@ -45,13 +46,13 @@ const availableShippingMethods = computed<ShippingMethodOption[]>(() => {
     ];
   }
 
-  const baseRaw = Number(c.baseShippingCost ?? 0);
+  const baseRaw = Number(sm.baseShippingCost ?? 0);
   const baseVal = Number.isFinite(baseRaw) ? baseRaw : 0;
-  const localRaw = Number(c.localShippingCost ?? c.baseShippingCost ?? 0);
+  const localRaw = Number(sm.localShippingCost ?? sm.baseShippingCost ?? 0);
   const localVal = Number.isFinite(localRaw) ? localRaw : baseVal;
 
   let freeApplies = false;
-  if (c.enableFreeShipping && discountMode !== 'N/A') {
+  if (discountMode !== 'N/A') {
     if (discountMode === 'discountByQuantity') {
       const min = quantityDiscount;
       freeApplies = min != null && totalItemCount.value >= min;
@@ -61,7 +62,7 @@ const availableShippingMethods = computed<ShippingMethodOption[]>(() => {
     }
   }
 
-  if (c.enableFreeShipping && freeApplies) {
+  if (freeApplies) {
     const freeLabel =
       (shippingFreeText ?? '').trim() || `Envío Gratis (${formatMoneyLabel(0)})`;
     methods.push({
@@ -72,13 +73,13 @@ const availableShippingMethods = computed<ShippingMethodOption[]>(() => {
   }
 
   const zip = props.postalCode.trim();
-  const prefixes = (c.localZipCodes ?? '')
+  const prefixes = (sm.localZipCodes ?? '')
     .split(',')
     .map((p) => p.trim())
     .filter(Boolean);
   const zipMatchesLocal = zip.length > 0 && prefixes.some((prefix) => zip.startsWith(prefix));
 
-  if (c.enableLocalShipping && zipMatchesLocal) {
+  if (sm.enableLocalShipping && zipMatchesLocal) {
     methods.push({
       id: 'local',
       label: `Envío Local (${formatMoneyLabel(localVal)})`,
@@ -86,10 +87,11 @@ const availableShippingMethods = computed<ShippingMethodOption[]>(() => {
     });
   }
 
-  if (c.enableBaseShipping) {
+  if (sm.enableBaseShipping) {
+    const baseTitle = (sm.baseShippingTitle ?? '').trim() || 'Envío Estándar';
     methods.push({
       id: 'base',
-      label: `Envío Estándar (${formatMoneyLabel(baseVal)})`,
+      label: `${baseTitle} (${formatMoneyLabel(baseVal)})`,
       cost: baseVal,
     });
   }
