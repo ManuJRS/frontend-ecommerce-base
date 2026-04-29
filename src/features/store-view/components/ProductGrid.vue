@@ -7,6 +7,7 @@ import type { ProductGridBlock } from '../models';
 import { useStoreViewStore } from '../stores/storeView.store';
 import type { AppliedProductFilters } from '../stores/storeView.store';
 import { useCartStore } from '@/features/cart/stores/cart.store';
+import { useCartConfigStore } from '@/features/cart/stores/cartConfig.store';
 import { getProductDescriptionHtmlExcerpt } from '@/features/products/utils/renderProductMarkdown';
 import { useFavoritesStore } from '@/features/favorites/store/favorites.store';
 
@@ -24,6 +25,10 @@ const rawProducts = ref<any[]>([]);
 const isLoadingProducts = ref(false);
 const store = useStoreViewStore();
 const cartStore = useCartStore();
+const cartConfig = useCartConfigStore();
+
+const currencyCode = computed(() => cartConfig.currencyCode);
+const currencySymbol = computed(() => cartConfig.currencySymbol);
 
 function hasVariantOptions(product: Record<string, unknown>): boolean {
   const v = product.variants as unknown[] | undefined;
@@ -246,6 +251,7 @@ function isOutOfStock(product: any): boolean {
 }
 
 onMounted(async () => {
+  await cartConfig.fetchFullCartConfig();
   if (props.block.dataSource === 'manual_selection') {
     rawProducts.value = [...(props.block.manualProducts || [])];
     captureBaselinesForList(rawProducts.value);
@@ -539,10 +545,10 @@ function getVariantLabel(variant: any): string {
                     'text-on-surface-variant': isOutOfStock(product),
                   }"
                 >
-                  ${{ product.discountedPrice ? product.discountedPrice.toFixed(2) : product.price.toFixed(2) }}
+                  {{ currencySymbol }}{{ product.discountedPrice ? product.discountedPrice.toFixed(2) : product.price.toFixed(2) }} {{ currencyCode }}
                 </span>
                 <span v-if="product.discountPercentage > 0" class="text-xs line-through text-on-surface-variant">
-                  ${{ product.price.toFixed(2) }}
+                  {{ currencySymbol }}{{ product.price.toFixed(2) }} {{ currencyCode }}
                 </span>
             </div>
           </div>
