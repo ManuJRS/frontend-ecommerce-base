@@ -6,6 +6,8 @@ export interface BaseShippingRate {
   service: string;
   price: number;
   days: number;
+  baseShippingAdvice?: string;
+  localShippingAdvice?: string;
 }
 
 const props = defineProps<{
@@ -32,7 +34,16 @@ const emit = defineEmits<{
     <div class="flex items-start justify-between gap-4">
       <div>
         <p class="font-semibold text-on-surface">{{ rate.carrier }} - {{ rate.service }}</p>
-        <p class="text-xs uppercase tracking-wider text-on-surface-variant">
+        <p
+          v-if="(rate.localShippingAdvice ?? rate.baseShippingAdvice)?.trim()"
+          class="text-xs leading-relaxed text-on-surface-variant"
+        >
+          {{ rate.localShippingAdvice ?? rate.baseShippingAdvice }}
+        </p>
+        <p
+          v-else
+          class="text-xs uppercase tracking-wider text-on-surface-variant"
+        >
           Entrega estimada: {{ rate.days }} días
         </p>
       </div>

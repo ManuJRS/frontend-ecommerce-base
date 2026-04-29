@@ -79,6 +79,8 @@ const DEFAULT_PAGE: CartPageCopy = {
 
 const DEFAULT_SHIPPING_METHODS: ShippingMethodsConfig = {
   enableEnvioclick: false,
+  baseShippingAdvice: '',
+  localShippingAdvice: '',
   enableBaseShipping: false,
   enableLocalShipping: false,
   enableFreeShipping: false,
@@ -96,7 +98,7 @@ const DEFAULT_CHECKOUT: CheckoutConfig = {
   quantityDiscount: null,
   amountDiscount: null,
   shippingMethods: { ...DEFAULT_SHIPPING_METHODS },
-  taxAndCurrency: { taxAmount: 16 },
+  taxAndCurrency: { taxAmount: 16, currencyCode: 'mxn', currencySymbol: '$' },
   shippingFreeText: '',
   fallbackShippingText: '',
   fallbackShippingWarning: '',
@@ -134,6 +136,8 @@ function mapShippingMethods(
       sm.enableEnvioclick ?? sm.EnableEnvioclick ?? raw.enableEnvioclick ?? raw.EnableEnvioclick,
       DEFAULT_SHIPPING_METHODS.enableEnvioclick
     ),
+    baseShippingAdvice: String(sm.baseShippingAdvice ?? raw.baseShippingAdvice ?? DEFAULT_SHIPPING_METHODS.baseShippingAdvice),
+    localShippingAdvice: String(sm.localShippingAdvice ?? raw.localShippingAdvice ?? DEFAULT_SHIPPING_METHODS.localShippingAdvice),
     enableBaseShipping: boolOr(
       sm.enableBaseShipping ?? raw.enableBaseShipping,
       DEFAULT_SHIPPING_METHODS.enableBaseShipping
@@ -195,6 +199,8 @@ function mapCheckout(
   const shippingAdviceRaw =
     shippingConfiguration?.shippingAdvice ?? raw.shippingAdvice;
   const taxAmountRaw = taxAndCurrencyFromCms?.taxAmount ?? raw.taxAmount;
+  const currencyCodeRaw = taxAndCurrencyFromCms?.currencyCode ?? raw.currencyCode;
+  const currencySymbolRaw = taxAndCurrencyFromCms?.currencySymbol ?? raw.currencySymbol;
   const taxAmount = Number(taxAmountRaw);
 
   return {
@@ -204,6 +210,10 @@ function mapCheckout(
     shippingMethods: mapShippingMethods(shippingMethodsFromCms, raw),
     taxAndCurrency: {
       taxAmount: Number.isFinite(taxAmount) ? taxAmount : DEFAULT_CHECKOUT.taxAndCurrency.taxAmount,
+      currencyCode: String(currencyCodeRaw ?? DEFAULT_CHECKOUT.taxAndCurrency.currencyCode).trim() || DEFAULT_CHECKOUT.taxAndCurrency.currencyCode,
+      currencySymbol:
+        String(currencySymbolRaw ?? DEFAULT_CHECKOUT.taxAndCurrency.currencySymbol).trim() ||
+        DEFAULT_CHECKOUT.taxAndCurrency.currencySymbol,
     },
     shippingFreeText: String(shippingFreeTextRaw ?? DEFAULT_CHECKOUT.shippingFreeText),
     fallbackShippingText: String(

@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+import { useCartConfigStore } from '@/features/cart/stores/cartConfig.store';
+
+const cartConfig = useCartConfigStore();
+const currencySymbol = computed(() => cartConfig.currencySymbol);
+const currencyCode = computed(() => cartConfig.currencyCode);
+
 type CheckoutLineItem = {
   product: Record<string, unknown>;
   quantity: number;
@@ -80,7 +87,7 @@ function lineUnitTotal(line: CheckoutLineItem): number {
             </p>
             <p class="text-xs text-on-surface-variant mt-1">Cantidad: {{ line.quantity }}</p>
           </div>
-          <p class="font-semibold tabular-nums">${{ formatMoney(lineUnitTotal(line)) }}</p>
+          <p class="font-semibold tabular-nums">{{ currencySymbol }}{{ formatMoney(lineUnitTotal(line)) }} {{ currencyCode }}</p>
         </div>
       </div>
     </div>
@@ -88,7 +95,7 @@ function lineUnitTotal(line: CheckoutLineItem): number {
     <div class="space-y-4 border-b border-outline-variant/20 pb-8">
       <div class="flex justify-between text-sm text-on-surface-variant gap-4">
         <span>{{ props.subtotalLabel ?? 'Subtotal' }}</span>
-        <span class="tabular-nums">${{ formatMoney(props.subtotal) }}</span>
+        <span class="tabular-nums">{{ currencySymbol }}{{ formatMoney(props.subtotal) }} {{ currencyCode }}</span>
       </div>
       <div class="flex justify-between text-sm text-on-surface-variant gap-4">
         <span>{{ props.shippingLabel ?? 'Shipping' }}</span>
@@ -96,7 +103,7 @@ function lineUnitTotal(line: CheckoutLineItem): number {
       </div>
       <div class="flex justify-between text-sm text-on-surface-variant gap-4">
         <span>{{ props.taxLabel ?? 'Estimated Tax' }}</span>
-        <span class="tabular-nums">${{ formatMoney(props.estimatedTax) }}</span>
+        <span class="tabular-nums">{{ currencySymbol }}{{ formatMoney(props.estimatedTax) }} {{ currencyCode }}</span>
       </div>
     </div>
 
@@ -104,7 +111,7 @@ function lineUnitTotal(line: CheckoutLineItem): number {
       <div class="flex justify-between text-lg font-bold w-full">
         <span>{{ props.totalLabel ?? 'Total' }}</span>
         <span class="text-2xl sm:text-3xl font-extrabold tracking-tighter tabular-nums text-on-surface">
-          ${{ formatMoney(props.totalAfterTax) }}
+          {{ currencySymbol }}{{ formatMoney(props.totalAfterTax) }} {{ currencyCode }}
         </span>
       </div>
     </div>

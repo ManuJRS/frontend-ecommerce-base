@@ -13,6 +13,8 @@ export interface ShippingMethodsConfig {
   enableEnvioclick: boolean;
   enableBaseShipping: boolean;
   enableLocalShipping: boolean;
+  baseShippingAdvice:string;
+  localShippingAdvice:string;
   enableFreeShipping: boolean;
   /** Costo base de envío cuando no aplica envío gratis. */
   baseShippingCost: number | null;
@@ -38,6 +40,8 @@ export interface CheckoutConfig {
   /** Configuración de impuestos/moneda (componente `taxAndCurrency` en Strapi). */
   taxAndCurrency: {
     taxAmount: number;
+    currencyCode: string;
+    currencySymbol: string;
   };
   shippingFreeText: string;
   /** Texto cuando el envío no pudo calcularse en checkout. */
