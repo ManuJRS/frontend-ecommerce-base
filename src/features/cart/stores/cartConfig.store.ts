@@ -51,11 +51,27 @@ export const useCartConfigStore = defineStore('cartConfig', () => {
     return Number.isFinite(Number(value)) ? Number(value) : 16;
   });
 
+  /** Código de moneda reusable en UI (fallback `mxn`). */
+  const currencyCode = computed<string>(() => {
+    const value = checkoutCopy.value?.taxAndCurrency?.currencyCode;
+    const normalized = String(value ?? '').trim();
+    return normalized || 'mxn';
+  });
+
+  /** Símbolo de moneda reusable en UI (fallback `$`). */
+  const currencySymbol = computed<string>(() => {
+    const value = checkoutCopy.value?.taxAndCurrency?.currencySymbol;
+    const normalized = String(value ?? '').trim();
+    return normalized || '$';
+  });
+
   return {
     modalCopy,
     checkoutCopy,
     shippingMethods,
     taxAmount,
+    currencyCode,
+    currencySymbol,
     pageCopy,
     loaded,
     loading,

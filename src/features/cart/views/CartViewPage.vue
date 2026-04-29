@@ -16,6 +16,8 @@ const cart = useCartStore();
 const cartConfig = useCartConfigStore();
 const route = useRoute();
 const router = useRouter();
+const currencySymbol = computed(() => cartConfig.currencySymbol);
+const currencyCode = computed(() => cartConfig.currencyCode);
 
 const { items, totalItemCount, subtotal } = storeToRefs(cart);
 const { modalCopy, pageCopy, checkoutCopy, taxAmount } = storeToRefs(cartConfig);
@@ -165,7 +167,7 @@ onMounted(() => {
                   {{ productSubtitle(line.product) }}
                 </p>
               </div>
-              <span class="text-lg font-bold shrink-0 tabular-nums">${{ formatMoney(lineUnitTotal(line)) }}</span>
+              <span class="text-lg font-bold shrink-0 tabular-nums">{{ currencySymbol }}{{ formatMoney(lineUnitTotal(line)) }} {{ currencyCode }}</span>
             </div>
             <div class="flex justify-between items-end flex-wrap gap-4">
               <div class="flex items-center bg-surface-container-low px-3 sm:px-4 py-2 rounded-full gap-4 sm:gap-6">
@@ -209,7 +211,7 @@ onMounted(() => {
     <div class="space-y-4 border-b border-outline-variant/20 pb-8">
       <div class="flex justify-between text-on-surface-variant text-sm gap-4">
         <span>{{ pageCopy?.summarySubtotalText ?? 'Subtotal' }}</span>
-        <span class="tabular-nums">${{ formatMoney(subtotal) }}</span>
+        <span class="tabular-nums">{{ currencySymbol }}{{ formatMoney(subtotal) }} {{ currencyCode }}</span>
       </div>
       <div class="flex justify-between text-on-surface-variant text-sm gap-4">
         <span>{{ pageCopy?.shippingRowLabel ?? '' }}</span>
@@ -217,14 +219,14 @@ onMounted(() => {
       </div>
       <div class="flex justify-between text-on-surface-variant text-sm gap-4">
         <span>{{ pageCopy?.summaryTaxText ?? '' }}</span>
-        <span class="tabular-nums">${{ formatMoney(estimatedTax) }}</span>
+        <span class="tabular-nums">{{ currencySymbol }}{{ formatMoney(estimatedTax) }} {{ currencyCode }}</span>
       </div>
     </div>
     
     <div class="flex justify-between items-baseline gap-4">
       <span class="text-lg font-bold">Total</span>
       <span class="text-2xl sm:text-3xl font-extrabold tracking-tighter tabular-nums">
-        ${{ formatMoney(grandTotal) }}
+        {{ currencySymbol }}{{ formatMoney(grandTotal) }} {{ currencyCode }}
       </span>
     </div>
     

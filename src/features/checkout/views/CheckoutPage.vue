@@ -20,8 +20,9 @@ interface ShippingRate {
   service: string;
   price: number;
   days: number;
+  baseShippingAdvice?: string;
+  localShippingAdvice?: string;
 }
-
 
 type PaymentDetailsExposed = {
   processStripePayment: () => Promise<void>;
@@ -219,6 +220,7 @@ function createBaseShippingRate(apiRates: ShippingRate[]): ShippingRate {
   const price = Number.isFinite(rawPrice) ? rawPrice : 0;
   const carrier =
     (sm?.baseShippingTitle ?? '').trim() || 'Envío Estándar';
+  const baseShippingAdvice = (sm?.baseShippingAdvice ?? '').trim();
   const days =
     apiRates.length > 0 ? Math.min(...apiRates.map((r) => r.days)) : 0;
   return {
@@ -227,10 +229,10 @@ function createBaseShippingRate(apiRates: ShippingRate[]): ShippingRate {
     service: 'Tarifa fija',
     price,
     days,
+    baseShippingAdvice,
   };
 }
 
-/** Envío estándar tienda: junto a cotizaciones Envíoclick cuando está habilitado en cart-config. */
 const baseShippingRate = computed(() => {
   if (!checkoutCopy.value?.shippingMethods?.enableBaseShipping || shippingRates.value.length === 0) {
     return null;
@@ -239,7 +241,7 @@ const baseShippingRate = computed(() => {
 });
 
 const showBaseShippingOption = computed(
-  () => Boolean(baseShippingRate.value) && !isLoadingRates.value
+  () => Boolean(baseShippingRate.value) && !isLoadingRates.value 
 );
 
 const isLocalShippingZipMatch = computed(() => {
@@ -260,6 +262,7 @@ function createLocalShippingRate(apiRates: ShippingRate[]): ShippingRate {
   const basePrice = Number.isFinite(baseRaw) ? baseRaw : 0;
   const localRaw = Number(sm?.localShippingCost ?? basePrice);
   const localPrice = Number.isFinite(localRaw) ? localRaw : basePrice;
+  const localShippingAdvice = (sm?.localShippingAdvice ?? '').trim();
   const days = apiRates.length > 0 ? Math.min(...apiRates.map((r) => r.days)) : 0;
   return {
     id: LOCAL_SHIPPING_ID,
@@ -267,6 +270,7 @@ function createLocalShippingRate(apiRates: ShippingRate[]): ShippingRate {
     service: 'Tarifa local',
     price: localPrice,
     days,
+    localShippingAdvice,
   };
 }
 

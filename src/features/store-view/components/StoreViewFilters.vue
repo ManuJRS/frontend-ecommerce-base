@@ -2,12 +2,17 @@
 import { computed, ref, watch } from 'vue';
 import type { StoreViewBlock } from '../models';
 import { useStoreViewStore } from '../stores/storeView.store';
+import { useCartConfigStore } from '@/features/cart/stores/cartConfig.store';
 
 export interface StoreFilterCategory {
   id: number;
   name?: string;
   documentId?: string;
 }
+
+const cartConfig = useCartConfigStore();
+const currencyCode = computed(() => cartConfig.currencyCode);
+const currencySymbol = computed(() => cartConfig.currencySymbol);
 
 function normalizeCategoriesSelection(raw: unknown): StoreFilterCategory[] {
   if (raw == null) return [];
@@ -178,12 +183,9 @@ defineExpose({
             :step="1"
           />
           <div class="flex justify-between text-[10px] font-medium text-on-surface-variant">
-            <span>${{ selectedPriceRange.min }}</span>
-            <span>${{ selectedPriceRange.max }}</span>
+            <span>{{ currencySymbol }}{{ selectedPriceRange.min }} {{ currencyCode }}</span>
+            <span>{{ currencySymbol }}{{ selectedPriceRange.max }} {{ currencyCode }}</span>
           </div>
-          <p class="text-[9px] text-slate-500 dark:text-slate-400">
-            Catálogo: ${{ parsedMin }} – ${{ parsedMax }}
-          </p>
         </div>
       </div>
 

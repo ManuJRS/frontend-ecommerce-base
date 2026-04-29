@@ -8,6 +8,8 @@ import CartShippingNudge from './CartShippingNudge.vue';
 
 const cart = useCartStore();
 const cartConfig = useCartConfigStore();
+const currencySymbol = computed(() => cartConfig.currencySymbol);
+const currencyCode = computed(() => cartConfig.currencyCode);
 const router = useRouter();
 const { items, drawerOpen, subtotal, totalItemCount } = storeToRefs(cart);
 const { checkoutCopy } = storeToRefs(cartConfig);
@@ -175,7 +177,7 @@ onUnmounted(() => {
                     <h4 class="font-manrope font-bold text-base sm:text-lg leading-tight">
                       {{ productName(line.product) }}
                     </h4>
-                    <span class="font-medium shrink-0 tabular-nums">${{ formatMoney(lineTotalAmount(line)) }}</span>
+                    <span class="font-medium shrink-0 tabular-nums">{{ currencySymbol }}{{ formatMoney(lineTotalAmount(line)) }} {{ currencyCode }}</span>
                   </div>
                   <p v-if="productSubtitle(line.product)" class="text-sm text-on-surface-variant line-clamp-2">
                     {{ productSubtitle(line.product) }}
@@ -236,7 +238,7 @@ onUnmounted(() => {
             <div class="flex justify-between items-end gap-4">
               <span class="text-lg font-bold font-manrope">Subtotal</span>
               <span class="text-2xl font-bold font-manrope tabular-nums">
-                ${{ subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                {{ currencySymbol }}{{ subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} {{ currencyCode }}
               </span>
             </div>
           </div>
