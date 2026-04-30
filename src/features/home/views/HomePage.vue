@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { defineAsyncComponent, onMounted } from 'vue';
-import type { StoreViewBlock } from '@/features/store-view/models';
+import type { HomeSectionBlock } from '../models';
 import { useHomeStore } from '../stores/home.store';
 
 const homeStore = useHomeStore();
@@ -8,6 +8,9 @@ const homeStore = useHomeStore();
 const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'blocks.dynamic-hero': defineAsyncComponent(
     () => import('@/features/store-view/components/DynamicHero.vue')
+  ),
+  'home.hero-home': defineAsyncComponent(
+    () => import('@/features/home/components/HeroHome.vue')
   ),
 };
 
@@ -40,7 +43,7 @@ onMounted(() => {
         v-for="block in homeStore.currentPage.sections"
         :key="block.id"
         :is="resolveComponent(block.__component)"
-        :block="block as StoreViewBlock"
+        :block="block as HomeSectionBlock"
       />
     </div>
   </div>
