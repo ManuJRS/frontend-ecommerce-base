@@ -12,6 +12,9 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'home.hero-home': defineAsyncComponent(
     () => import('@/features/home/components/HeroHome.vue')
   ),
+  'home.grid-home': defineAsyncComponent(
+    () => import('@/features/home/components/GridHome.vue')
+  ),
 };
 
 const resolveComponent = (componentName: string) => {
