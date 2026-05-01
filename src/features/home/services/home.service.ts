@@ -21,6 +21,20 @@ export const HomeService = {
                       },
                     },
                   }
+                },
+                'home.grid-home': {
+                    populate: {
+                      gridRelation: {
+                        populate: {
+                          categoryImage: true,
+                        },
+                      },
+                      griManual: {
+                        populate: {
+                          gridManualImage: true,
+                        },
+                      },
+                  },
                 }
               },
             },
@@ -30,6 +44,12 @@ export const HomeService = {
       );
       const response = await api.get(`/home?${query}`);
       const data = response.data.data;
+      console.log('[home.service] /api/home raw response:', response.data);
+      console.log('[home.service] /api/home homeSection:', data?.homeSection);
+      const gridHomeBlocks = (data?.homeSection ?? []).filter(
+        (block: { __component?: string }) => block.__component === 'home.grid-home'
+      );
+      console.log('[home.service] /api/home grid-home blocks:', gridHomeBlocks);
 
       if (!data) return null;
 

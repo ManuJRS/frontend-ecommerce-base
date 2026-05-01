@@ -85,7 +85,52 @@ export interface HomeHeroBlock {
   [key: string]: unknown;
 }
 
-export type HomeSectionBlock = HomeDynamicHeroBlock | HomeHeroBlock;
+export interface HomeGridManualItem {
+  id: number;
+  gridManualTitle?: string;
+  gridManualButtonText?: string;
+  gridManualButtonLink?: string | null;
+  gridManualImage?: {
+    id?: number;
+    url?: string;
+    alternativeText?: string | null;
+  } | null;
+}
+
+export interface HomeGridRelationItem {
+  id: number;
+  name?: string;
+  slug?: string;
+  documentId?: string;
+  categoryImage?: {
+    id?: number;
+    url?: string;
+    alternativeText?: string | null;
+  } | null;
+  image?: {
+    id?: number;
+    url?: string;
+    alternativeText?: string | null;
+  } | null;
+  [key: string]: unknown;
+}
+
+export interface HomeGridBlock {
+  __component: 'home.grid-home';
+  id: number;
+  gridTitle?: string;
+  gridButtonText?: string;
+  gridButtonLink?: string | null;
+  gridBackground?: boolean;
+  gridRelationButtonText?: string;
+  girdText?: string;
+  gridMode?: 'Auto' | 'Manual';
+  gridRelation?: HomeGridRelationItem[];
+  griManual?: HomeGridManualItem[];
+  [key: string]: unknown;
+}
+
+export type HomeSectionBlock = HomeDynamicHeroBlock | HomeHeroBlock | HomeGridBlock;
 
 export interface HomePageData {
   id: number;
