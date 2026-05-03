@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import AppHeader from '@/features/header/components/AppHeader.vue';
+import AppFooter from '@/features/footer/components/AppFooter.vue';
 import CartModal from '@/features/cart/components/CartModal.vue';
 import { useCartConfigStore } from '@/features/cart/stores/cartConfig.store';
 
@@ -18,5 +19,6 @@ onMounted(() => {
     <main class="flex-1 w-full pt-16 sm:pt-20">
       <router-view />
     </main>
+    <AppFooter />
   </div>
 </template>
