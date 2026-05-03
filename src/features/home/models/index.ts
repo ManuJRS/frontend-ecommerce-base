@@ -115,6 +115,68 @@ export interface HomeGridRelationItem {
   [key: string]: unknown;
 }
 
+export interface HomeSharedNewsletterFormBlock {
+  __component: 'shared.newsletter-form';
+  id: number;
+  newsletterSpan?: string;
+  newsletterTitle?: string;
+  newsletterInputText?: string;
+  newsletterButtonText?: string;
+  [key: string]: unknown;
+}
+
+export interface HomeSharedIntroBlock {
+  __component: 'shared.intro';
+  id: number;
+  introSpan?: string;
+  introTitle?: string;
+  introText?: string;
+  introButtonText?: string;
+  introButtonLink?: string | null;
+  introBackground?: boolean;
+  introAlignment?: 'Left' | 'Center' | 'Right';
+  /** `normal` → md:py-16, `double` → md:py-32 (móvil siempre py-16) */
+  introPaddingY?: 'normal' | 'double';
+  [key: string]: unknown;
+}
+
+export interface HomeSharedCardBlock {
+  __component: 'shared.card';
+  id: number;
+  cardSpan?: string;
+  cardText?: string;
+  cardButtonText?: string;
+  cardButtonLink?: string | null;
+  cardBackground?: boolean;
+  cardAlignment?: 'Left' | 'Right';
+  cardTitle?: string;
+  cardMedia?: {
+    id?: number;
+    url?: string;
+    mime?: string;
+    alternativeText?: string | null;
+  } | null;
+  cardButtonRelationProduct?:
+    | {
+        id?: number;
+        slug?: string;
+        documentId?: string;
+      }
+    | {
+        data?: {
+          id?: number;
+          slug?: string;
+          documentId?: string;
+          attributes?: {
+            slug?: string;
+            documentId?: string;
+          };
+        } | null;
+      }
+    | null;
+  [key: string]: unknown;
+}
+
 export interface HomeGridBlock {
   __component: 'home.grid-home';
   id: number;
@@ -130,7 +192,13 @@ export interface HomeGridBlock {
   [key: string]: unknown;
 }
 
-export type HomeSectionBlock = HomeDynamicHeroBlock | HomeHeroBlock | HomeGridBlock;
+export type HomeSectionBlock =
+  | HomeDynamicHeroBlock
+  | HomeHeroBlock
+  | HomeGridBlock
+  | HomeSharedCardBlock
+  | HomeSharedIntroBlock
+  | HomeSharedNewsletterFormBlock;
 
 export interface HomePageData {
   id: number;

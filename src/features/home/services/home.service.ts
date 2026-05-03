@@ -35,7 +35,15 @@ export const HomeService = {
                         },
                       },
                   },
-                }
+                },
+                'shared.card': {
+                  populate: {
+                    cardMedia: true,
+                    cardButtonRelationProduct: true,
+                  },
+                },
+                'shared.intro': true,
+                'shared.newsletter-form': true,
               },
             },
           },
