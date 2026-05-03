@@ -58,7 +58,7 @@ const resolveLink = (item: GridVisibleItem): string => {
 
 <template>
   <section
-    class="w-full py-16 md:py-24"
+    class="w-full py-16 md:py-32"
     :class="{ 'bg-[#f2f4f6]': block.gridBackground }"
   >
     <div class="mx-auto max-w-screen-2xl px-4 md:px-8">

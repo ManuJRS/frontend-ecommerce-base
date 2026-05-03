@@ -15,6 +15,15 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'home.grid-home': defineAsyncComponent(
     () => import('@/features/home/components/GridHome.vue')
   ),
+  'shared.card': defineAsyncComponent(
+    () => import('@/features/home/components/SharedCard.vue')
+  ),
+  'shared.intro': defineAsyncComponent(
+    () => import('@/features/home/components/SharedIntro.vue')
+  ),
+  'shared.newsletter-form': defineAsyncComponent(
+    () => import('@/features/home/components/SharedNewsletterForm.vue')
+  ),
 };
 
 const resolveComponent = (componentName: string) => {
