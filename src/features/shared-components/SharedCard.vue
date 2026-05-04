@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { HomeSharedCardBlock } from '../models';
+import type { HomeSharedCardBlock } from '@/features/home/models';
 
 const props = defineProps<{
   block: HomeSharedCardBlock;
