@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { HomeSharedNewsletterFormBlock } from '../models';
+import type { HomeSharedNewsletterFormBlock } from '@/features/home/models';
 
 defineProps<{
   block: HomeSharedNewsletterFormBlock;

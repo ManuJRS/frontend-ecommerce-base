@@ -3,6 +3,7 @@ import type { RouteRecordRaw } from 'vue-router';
 
 const HomePage = () => import('@/features/home/views/HomePage.vue');
 const SlugEntryView = () => import('@/features/routing/views/SlugEntryView.vue');
+const DynamicPageView = () => import('@/features/routing/views/DynamicPageView.vue');
 const CheckoutPage = () => import('@/features/checkout/views/CheckoutPage.vue');
 const CheckoutSuccessPage = () => import('@/features/checkout/views/CheckoutSuccess.vue');
 const ProductView = () => import('@/features/products/views/ProductView.vue');
@@ -34,6 +35,11 @@ const routes: Array<RouteRecordRaw> = [
     path: '/favoritos',
     name: 'Favorites',
     component: FavoritesView,
+  },
+  {
+    path: '/p/:slug',
+    name: 'DynamicPage',
+    component: DynamicPageView,
   },
   {
     path: '/:slug',
