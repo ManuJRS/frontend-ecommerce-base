@@ -44,6 +44,20 @@ export const HomeService = {
                 },
                 'shared.intro': true,
                 'shared.newsletter-form': true,
+                'shared.grio-prioduct': {
+                  populate: {
+                    manualProducts: {
+                      populate: ['images', 'categories'],
+                    },
+                    category: {
+                      populate: {
+                        products: {
+                          populate: ['images', 'categories'],
+                        },
+                      },
+                    },
+                  },
+                },
               },
             },
           },

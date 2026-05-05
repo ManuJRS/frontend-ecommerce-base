@@ -177,6 +177,57 @@ export interface HomeSharedCardBlock {
   [key: string]: unknown;
 }
 
+export interface HomeSharedGridProductItem {
+  id: number;
+  slug?: string;
+  name?: string;
+  price?: number;
+  discountedPrice?: number;
+  discountPercentage?: number;
+  description?: string;
+  images?: Array<{
+    id?: number;
+    url?: string;
+    alternativeText?: string | null;
+  }>;
+  categories?: Array<{
+    id?: number;
+    name?: string;
+  }>;
+  [key: string]: unknown;
+}
+
+export interface HomeSharedGridProductBlock {
+  __component: 'shared.grio-prioduct';
+  id: number;
+  title?: string;
+  text?: string;
+  buttonText?: string;
+  buttonLink?: string | null;
+  dataSource?: 'manual_selection' | 'by_category' | 'all_products';
+  badgeFormat?: 'percentage' | 'amount' | 'text_only';
+  itemsLimit?: number;
+  showItemsQuantity?: boolean;
+  showCalification?: boolean;
+  showDiscountBadge?: boolean;
+  showDescription?: boolean;
+  showCategory?: boolean;
+  showFavIcon?: boolean;
+  /** `true` activa avance automático; `false` lo desactiva; ausente conserva el comportamiento anterior (autoplay). */
+  autoTransition?: boolean;
+  /** `true` muestra flechas anterior/siguiente en el carrusel. */
+  showChevron?: boolean;
+  /** `true` aplica fondo gris claro como en grid-home (`#f2f4f6`). */
+  background?: boolean;
+  manualProducts?: HomeSharedGridProductItem[];
+  category?: {
+    id?: number;
+    name?: string;
+    products?: HomeSharedGridProductItem[];
+  } | null;
+  [key: string]: unknown;
+}
+
 export interface HomeGridBlock {
   __component: 'home.grid-home';
   id: number;
@@ -198,7 +249,8 @@ export type HomeSectionBlock =
   | HomeGridBlock
   | HomeSharedCardBlock
   | HomeSharedIntroBlock
-  | HomeSharedNewsletterFormBlock;
+  | HomeSharedNewsletterFormBlock
+  | HomeSharedGridProductBlock;
 
 export interface HomePageData {
   id: number;
