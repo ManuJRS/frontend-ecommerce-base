@@ -24,6 +24,9 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'shared.newsletter-form': defineAsyncComponent(
     () => import('@/features/shared-components/SharedNewsletterForm.vue')
   ),
+  'shared.grio-prioduct': defineAsyncComponent(
+    () => import('@/features/shared-components/SharedGridProduct.vue')
+  ),
 };
 
 const resolveComponent = (componentName: string) => {
