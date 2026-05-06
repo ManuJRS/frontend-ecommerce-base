@@ -174,6 +174,25 @@ export interface HomeSharedCardBlock {
         } | null;
       }
     | null;
+  /** Entrada del collection type Page (misma forma REST que el producto). */
+  cardButtonRelationPages?:
+    | {
+        id?: number;
+        slug?: string;
+        documentId?: string;
+      }
+    | {
+        data?: {
+          id?: number;
+          slug?: string;
+          documentId?: string;
+          attributes?: {
+            slug?: string;
+            documentId?: string;
+          };
+        } | null;
+      }
+    | null;
   [key: string]: unknown;
 }
 
