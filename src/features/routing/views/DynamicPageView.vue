@@ -19,8 +19,14 @@ const error = ref<string | null>(null);
 const page = ref<DynamicPage | null>(null);
 
 const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
+  'shared.hero': defineAsyncComponent(
+    () => import('@/features/shared-components/SharedHero.vue')
+  ),
   'shared.intro': defineAsyncComponent(
     () => import('@/features/shared-components/SharedIntro.vue')
+  ),
+  'shared.card': defineAsyncComponent(
+    () => import('@/features/shared-components/SharedCard.vue')
   ),
 };
 
