@@ -40,6 +40,7 @@ export const HomeService = {
                   populate: {
                     cardMedia: true,
                     cardButtonRelationProduct: true,
+                    cardButtonRelationPages: true,
                   },
                 },
                 'shared.intro': true,

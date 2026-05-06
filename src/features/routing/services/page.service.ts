@@ -1,4 +1,5 @@
 import { api } from '@/core/api';
+import qs from 'qs';
 
 export interface DynamicPage {
   id?: number;
@@ -14,12 +15,63 @@ export interface DynamicPage {
 }
 
 export async function fetchPageBySlug(slug: string): Promise<DynamicPage[]> {
+  const toArray = (responseData: unknown): DynamicPage[] => {
+    const data = (responseData as { data?: unknown })?.data;
+    return Array.isArray(data) ? (data as DynamicPage[]) : [];
+  };
+
+  const fallbackQuery = qs.stringify(
+    {
+      filters: { slug: { $eq: slug } },
+      populate: '*',
+    },
+    { encodeValuesOnly: true }
+  );
+
   try {
-    const safeSlug = encodeURIComponent(slug);
-    const response = await api.get(`/pages?filters[slug][$eq]=${safeSlug}&populate=*`);
-    return Array.isArray(response.data?.data) ? (response.data.data as DynamicPage[]) : [];
+    const query = qs.stringify(
+      {
+        filters: { slug: { $eq: slug } },
+        populate: {
+          seo: true,
+          content: {
+            on: {
+              'shared.hero': {
+                populate: {
+                  heroMedia: true,
+                  productRelation: true,
+                  heroCarousel: {
+                    populate: {
+                      carouselMedia: true,
+                      productCarouselRelation: true,
+                    },
+                  },
+                },
+              },
+              'shared.card': {
+                populate: {
+                  cardMedia: true,
+                  cardButtonRelationProduct: true,
+                  cardButtonRelationPages: true,
+                },
+              },
+              'shared.intro': true,
+            },
+          },
+        },
+      },
+      { encodeValuesOnly: true }
+    );
+    const response = await api.get(`/pages?${query}`);
+    return toArray(response.data);
   } catch (error) {
-    console.error('[page.service] failed to fetch page by slug', error);
-    return [];
+    console.warn('[page.service] detailed populate failed, trying fallback populate=*', error);
+    try {
+      const fallbackResponse = await api.get(`/pages?${fallbackQuery}`);
+      return toArray(fallbackResponse.data);
+    } catch (fallbackError) {
+      console.error('[page.service] failed to fetch page by slug (fallback)', fallbackError);
+      return [];
+    }
   }
 }
