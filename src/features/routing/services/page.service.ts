@@ -56,6 +56,40 @@ export async function fetchPageBySlug(slug: string): Promise<DynamicPage[]> {
                 },
               },
               'shared.intro': true,
+              'shared.grid': {
+                populate: {
+                  gridRelation: {
+                    populate: {
+                      categoryImage: true,
+                    },
+                  },
+                  gridManual: {
+                    populate: {
+                      gridManualImage: true,
+                    },
+                  },
+                },
+              },
+              'shared.grio-prioduct': {
+                populate: {
+                  manualProducts: {
+                    populate: ['images', 'categories'],
+                  },
+                  category: {
+                    populate: {
+                      products: {
+                        populate: ['images', 'categories'],
+                      },
+                    },
+                  },
+                },
+              },
+              'shared.map': {
+                populate: {
+                  contactItems: true,
+                  scheduleItems: true,
+                },
+              },
             },
           },
         },
