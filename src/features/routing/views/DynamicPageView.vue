@@ -28,6 +28,16 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'shared.card': defineAsyncComponent(
     () => import('@/features/shared-components/SharedCard.vue')
   ),
+  'shared.grid': defineAsyncComponent(
+    () => import('@/features/shared-components/SharedGrid.vue')
+  ),
+  'shared.grio-prioduct': defineAsyncComponent(
+    () => import('@/features/shared-components/SharedGridProduct.vue')
+  ),
+  'shared.newsletter-form': defineAsyncComponent(
+    () => import('@/features/shared-components/SharedNewsletterForm.vue')
+  ),
+  'shared.map': defineAsyncComponent(() => import('@/features/shared-components/SharedMap.vue')),
 };
 
 const blocks = computed<DynamicBlock[]>(() => {
@@ -118,6 +128,7 @@ watch(
         v-for="(block, idx) in blocks"
         :key="String(block.id ?? `${block.__component ?? 'block'}-${idx}`)"
         :is="resolveComponent(block.__component)"
+        :block="block"
         :data="block"
       />
     </div>
