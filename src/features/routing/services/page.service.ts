@@ -70,6 +70,25 @@ export async function fetchPageBySlug(slug: string): Promise<DynamicPage[]> {
                   },
                 },
               },
+              // 'shared.filters': {
+              //   populate: {
+              //     blogCategory: true,
+              //   },
+              // },
+              // 'shared.featured-blog': {
+              //   populate: {
+              //     post: {
+              //       populate: ['cover', 'category'],
+              //     },
+              //   },
+              // },
+              // 'shared.grid-blog': {
+              //   populate: {
+              //     blogManual: {
+              //       populate: ['cover', 'category'],
+              //     },
+              //   },
+              // },
               'shared.grio-prioduct': {
                 populate: {
                   manualProducts: {

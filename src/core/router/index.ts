@@ -7,6 +7,8 @@ const CheckoutPage = () => import('@/features/checkout/views/CheckoutPage.vue');
 const CheckoutSuccessPage = () => import('@/features/checkout/views/CheckoutSuccess.vue');
 const ProductView = () => import('@/features/products/views/ProductView.vue');
 const FavoritesView = () => import('@/features/favorites/views/FavoritesView.vue');
+const BlogListView = () => import('@/features/blog/views/BlogListView.vue');
+const BlogPostView = () => import('@/features/blog/views/BlogPostView.vue');
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -34,6 +36,18 @@ const routes: Array<RouteRecordRaw> = [
     path: '/favoritos',
     name: 'Favorites',
     component: FavoritesView,
+  },
+  {
+    /** Single Type `blog` de Strapi: zona dinámica de bloques compartidos. */
+    path: '/blog',
+    name: 'Blog',
+    component: BlogListView,
+  },
+  {
+    /** Detalle de post del blog (campo `slug` en Strapi). */
+    path: '/blog/:slug',
+    name: 'BlogPost',
+    component: BlogPostView,
   },
   {
     path: '/:slug',

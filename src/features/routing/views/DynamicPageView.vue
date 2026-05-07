@@ -31,6 +31,18 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'shared.grid': defineAsyncComponent(
     () => import('@/features/shared-components/SharedGrid.vue')
   ),
+  'shared.filters': defineAsyncComponent(
+    () => import('@/features/shared-components/SharedFilters.vue')
+  ),
+  'shared.featured-blog': defineAsyncComponent(
+    () => import('@/features/shared-components/SharedFeaturedBlog.vue')
+  ),
+  'shared.featured-post': defineAsyncComponent(
+    () => import('@/features/shared-components/SharedFeaturedBlog.vue')
+  ),
+  'shared.grid-blog': defineAsyncComponent(
+    () => import('@/features/shared-components/SharedGridBlog.vue')
+  ),
   'shared.grio-prioduct': defineAsyncComponent(
     () => import('@/features/shared-components/SharedGridProduct.vue')
   ),
