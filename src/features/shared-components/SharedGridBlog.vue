@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import type { BlogMedia, Post } from '@/features/blog/services/blog.service';
+import { useBlogFilter } from '@/features/blog/composables/useBlogFilter';
 import { fetchPosts, normalizeBlogPost } from '@/features/blog/services/blog.service';
 import { resolveStrapiMediaUrl } from '@/shared/utils/strapiMedia';
 
@@ -26,12 +27,16 @@ const props = defineProps<{
 
 const gridBlock = computed(() => (props.data ?? props.block ?? {}) as SharedGridBlogBlock);
 
+const { matchesSelectedCategory } = useBlogFilter();
+
 const posts = ref<Post[]>([]);
 const loading = ref(false);
 
 const resolvedTitle = computed(() => props.title ?? gridBlock.value.title ?? '');
 const resolvedSpan = computed(() => props.span ?? gridBlock.value.span ?? '');
 const resolvedMode = computed<GridBlogMode>(() => props.mode ?? gridBlock.value.mode ?? 'manual');
+
+const filteredPosts = computed(() => posts.value.filter((post) => matchesSelectedCategory(post)));
 
 const manualSource = computed(
   () => props.blogManual ?? gridBlock.value.blogManual ?? gridBlock.value.posts
@@ -70,7 +75,7 @@ function postCoverUrl(post: Post): string {
 }
 
 function categoryLabel(post: Post): string {
-  return post.blogCategory?.name ?? post.category?.name ?? post.categories?.[0]?.name ?? 'Story';
+  return post.blogCategory?.name ?? post.category?.name ?? post.categories?.[0]?.name ?? post.BlogCategory?.[0]?.name ?? 'Blog';
 }
 
 function postLink(post: Post): string {
@@ -126,9 +131,16 @@ watch([resolvedMode, manualSource], () => void loadPosts(), { immediate: true, d
         Cargando historias...
       </div>
 
+      <div
+        v-else-if="filteredPosts.length === 0"
+        class="py-16 text-center text-sm text-on-surface-variant"
+      >
+        No hay publicaciones en esta categoría.
+      </div>
+
       <div v-else class="grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-3 lg:gap-16">
         <article
-          v-for="(post, idx) in posts"
+          v-for="(post, idx) in filteredPosts"
           :key="post.documentId ?? post.id ?? idx"
           class="group flex flex-col"
           :class="{ 'lg:mt-24': idx % 3 === 1 }"
@@ -164,6 +176,9 @@ watch([resolvedMode, manualSource], () => void loadPosts(), { immediate: true, d
           <p v-if="postExcerpt(post)" class="font-body mb-6 line-clamp-3 text-on-surface-variant">
             {{ postExcerpt(post) }}
           </p>
+          <span class="mb-3 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+            tiempo de lectura: {{ post.readingTime }} min
+          </span>
           <div class="mt-auto">
             <RouterLink :to="postLink(post)" class="inline-flex items-center text-sm font-bold text-primary">
               Read More

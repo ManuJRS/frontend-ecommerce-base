@@ -2,7 +2,7 @@ import { api } from '@/core/api';
 import qs from 'qs';
 
 type UnknownRecord = Record<string, unknown>;
-type CategoryRelationField = 'blogCategory' | 'category' | 'categories';
+type CategoryRelationField = 'blogCategory' | 'BlogCategory' | 'category' | 'categories';
 
 interface StrapiCollectionResponse<T> {
   data?: T[];
@@ -51,6 +51,7 @@ export interface Post {
   cover?: BlogMedia | null;
   image?: BlogMedia | null;
   blogCategory?: BlogCategory | null;
+  BlogCategory?: BlogCategory[];
   category?: BlogCategory | null;
   categories?: BlogCategory[];
   [key: string]: unknown;
@@ -168,6 +169,7 @@ export function normalizeBlogPost(raw: unknown): Post {
   const blogCategoryRaw = relationData(entry.blogCategory);
   const categoryRaw = relationData(entry.category);
   const categories = relationArray(entry.categories).map(normalizeBlogCategory);
+  const BlogCategory = relationArray(entry.BlogCategory).map(normalizeBlogCategory);
 
   return {
     ...entry,
@@ -187,6 +189,7 @@ export function normalizeBlogPost(raw: unknown): Post {
     cover: normalizeMedia(entry.cover),
     image: normalizeMedia(entry.image),
     blogCategory: blogCategoryRaw == null ? null : normalizeBlogCategory(blogCategoryRaw),
+    BlogCategory,
     category: categoryRaw == null ? null : normalizeBlogCategory(categoryRaw),
     categories,
   };
@@ -285,14 +288,14 @@ const BLOG_DYNAMIC_ZONE_POPULATE = {
     'shared.featured-blog': {
       populate: {
         post: {
-          populate: ['cover'],
+          populate: ['cover', 'BlogCategory'],
         },
       },
     },
     'shared.grid-blog': {
       populate: {
         blogManual: {
-          populate: ['cover'],
+          populate: ['cover', 'BlogCategory'],
         },
       },
     },
