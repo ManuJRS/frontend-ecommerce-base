@@ -65,7 +65,8 @@ const categoryLabel = computed(
     featuredPost.value?.blogCategory?.name ??
     featuredPost.value?.category?.name ??
     featuredPost.value?.categories?.[0]?.name ??
-    'Atelier Stories'
+    featuredPost.value?.BlogCategory?.[0]?.name ??
+    'Blog'
 );
 
 const postLink = computed(() => {
@@ -75,7 +76,7 @@ const postLink = computed(() => {
 </script>
 
 <template>
-  <section v-if="featuredPost" class="w-full px-8">
+  <section v-if="featuredPost" class="w-full px-8 md:py-32 py-16">
     <div class="mx-auto max-w-screen-2xl">
       <h2
         v-if="resolvedTitle"
@@ -110,9 +111,12 @@ const postLink = computed(() => {
           <h3 class="mb-6 font-headline text-4xl font-bold leading-tight tracking-tight text-primary">
             {{ featuredPost.title }}
           </h3>
-          <p v-if="featuredPost.excerpt" class="font-body mb-10 text-lg leading-relaxed text-on-surface-variant">
+          <p v-if="featuredPost.excerpt" class="font-body mb-4 text-lg leading-relaxed text-on-surface-variant">
             {{ featuredPost.excerpt }}
           </p>
+          <span class="mb-3 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+            tiempo de lectura: {{ featuredPost.readingTime }} min
+          </span>
           <span class="inline-flex w-max items-center font-headline font-bold text-primary">
             Read Full Story
             <span class="material-symbols-outlined ml-2 transition-transform duration-300 group-hover:translate-x-2">

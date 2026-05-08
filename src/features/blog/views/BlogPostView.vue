@@ -83,7 +83,7 @@ function formatReadingTime(value: string | number | null | undefined): string {
 const heroImageUrl = computed(() => postCoverUrl(post.value));
 
 const heroCategoryLabel = computed(
-  () => postPrimaryCategory(post.value)?.name ?? 'Atelier Stories'
+  () => postPrimaryCategory(post.value)?.name ?? post.value?.BlogCategory?.[0]?.name ?? 'Blog'
 );
 
 const publishedLabel = computed(() =>

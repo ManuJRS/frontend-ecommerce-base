@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import type { BlogCategory } from '@/features/blog/services/blog.service';
 import { normalizeBlogCategory } from '@/features/blog/services/blog.service';
+import { useBlogFilter } from '@/features/blog/composables/useBlogFilter';
 
 type SharedFiltersBlock = Record<string, unknown> & {
   title?: string;
@@ -24,6 +25,8 @@ const emit = defineEmits<{
 const filtersBlock = computed<SharedFiltersBlock>(
   () => props.data ?? props.block ?? {}
 );
+
+const { setSelectedCategory } = useBlogFilter();
 
 const selectedKey = ref('all');
 
@@ -59,6 +62,7 @@ function categoryKey(category: BlogCategory): string {
 
 function selectCategory(category: BlogCategory | null) {
   selectedKey.value = category ? categoryKey(category) : 'all';
+  setSelectedCategory(category);
   emit('filter-selected', category);
   emit('update:selectedCategory', category);
 }
@@ -72,7 +76,7 @@ watch(categories, (list) => {
 </script>
 
 <template>
-  <section v-if="categories.length > 0" class="w-full px-8">
+  <section v-if="categories.length > 0" class="w-full px-8 md:py-32 py-16">
     <div v-if="resolvedTitle || resolvedSpan" class="mx-auto mb-8 max-w-screen-2xl text-center">
       <span
         v-if="resolvedSpan"
@@ -100,7 +104,7 @@ watch(categories, (list) => {
             "
             @click="selectCategory(null)"
           >
-            All Stories
+            Todo
           </button>
         </li>
         <li v-for="category in categories" :key="categoryKey(category)">
