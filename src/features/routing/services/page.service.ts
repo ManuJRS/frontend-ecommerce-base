@@ -56,6 +56,7 @@ export async function fetchPageBySlug(slug: string): Promise<DynamicPage[]> {
                 },
               },
               'shared.intro': true,
+              'shared.contact-form': true,
               'shared.grid': {
                 populate: {
                   gridRelation: {
