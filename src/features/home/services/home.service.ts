@@ -45,6 +45,7 @@ export const HomeService = {
                 },
                 'shared.intro': true,
                 'shared.newsletter-form': true,
+                'shared.contact-form': true,
                 // 'shared.filters': {
                 //   populate: {
                 //     blogCategory: true,
