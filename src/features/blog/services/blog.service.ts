@@ -280,6 +280,7 @@ const BLOG_DYNAMIC_ZONE_POPULATE = {
     },
     'shared.intro': true,
     'shared.newsletter-form': true,
+    'shared.contact-form': true,
     'shared.filters': {
       populate: {
         blogCategory: true,

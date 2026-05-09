@@ -24,6 +24,9 @@ const componentMap: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'shared.newsletter-form': defineAsyncComponent(
     () => import('@/features/shared-components/SharedNewsletterForm.vue')
   ),
+  'shared.contact-form': defineAsyncComponent(
+    () => import('@/features/shared-components/SharedContactForm.vue')
+  ),
   'shared.filters': defineAsyncComponent(
     () => import('@/features/shared-components/SharedFilters.vue')
   ),
