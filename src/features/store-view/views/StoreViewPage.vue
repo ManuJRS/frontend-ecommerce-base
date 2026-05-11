@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted } from 'vue';
+import { computed, defineAsyncComponent, onMounted, watch } from 'vue';
+import { useRoute, type LocationQuery } from 'vue-router';
 import { useStoreViewStore } from '../stores/storeView.store';
 
 const storeViewStore = useStoreViewStore();
+const route = useRoute();
 
 const hasStoreFiltersBlock = computed(() =>
   storeViewStore.currentPage?.contentBlocks.some((b) => b.__component === 'config.store-filters')
@@ -23,9 +25,52 @@ const resolveComponent = (componentName: string) => {
   return component || null;
 };
 
-onMounted(() => {
-  storeViewStore.fetchPage(); 
+function queryValue(query: LocationQuery, key: string): string | undefined {
+  const raw = query[key];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined;
+}
+
+function numberQueryValue(query: LocationQuery, key: string): number | null {
+  const value = queryValue(query, key);
+  if (value == null) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function booleanQueryValue(query: LocationQuery, key: string): boolean {
+  const value = queryValue(query, key)?.toLowerCase();
+  return value === 'true' || value === '1' || value === 'yes';
+}
+
+function loadProductsFromQuery(query: LocationQuery) {
+  const minPrice = numberQueryValue(query, 'minPrice');
+  const maxPrice = numberQueryValue(query, 'maxPrice');
+  const priceRange =
+    minPrice != null && maxPrice != null
+      ? { min: minPrice, max: maxPrice }
+      : null;
+
+  storeViewStore.applyProductFilters({
+    priceRange,
+    categoryIds: [],
+    categorySlug: queryValue(query, 'category') ?? null,
+    availabilityOnly: booleanQueryValue(query, 'stock'),
+  });
+}
+
+onMounted(async () => {
+  await storeViewStore.fetchPage();
+  loadProductsFromQuery(route.query);
 });
+
+watch(
+  () => route.query,
+  (query) => {
+    loadProductsFromQuery(query);
+  },
+  { deep: true, immediate: true }
+);
 </script>
 
 <template>
