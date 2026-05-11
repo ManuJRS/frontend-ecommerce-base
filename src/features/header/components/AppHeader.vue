@@ -1,12 +1,25 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { useRouter } from 'vue-router';
 import type { HeaderNavLink } from '../models';
+import { api } from '@/core/api';
+import debounce from 'lodash/debounce';
 import { useHeaderStore } from '../stores/header.store';
 import { useCartStore } from '@/features/cart/stores/cart.store';
 import { useCartConfigStore } from '@/features/cart/stores/cartConfig.store';
 import { useFavoritesStore } from '@/features/favorites/store/favorites.store';
+import { resolveStrapiMediaUrl } from '@/shared/utils/strapiMedia';
 import { storeToRefs } from 'pinia';
+
+type ProductSearchResult = {
+  id: number;
+  name: string;
+  slug?: string;
+  images?: {
+    url?: string;
+  }[];
+};
 
 const favoritesStore = useFavoritesStore();
 const { totalFavorites } = storeToRefs(favoritesStore);
@@ -15,6 +28,64 @@ const headerStore = useHeaderStore();
 const cartStore = useCartStore();
 const cartConfigStore = useCartConfigStore();
 const route = useRoute();
+
+const searchQuery = ref('');
+const results = ref<ProductSearchResult[]>([]);
+const isSearching = ref(false);
+const router = useRouter();
+let searchRequestId = 0;
+
+const productImageUrl = (product: ProductSearchResult) => {
+  return resolveStrapiMediaUrl(product.images?.[0]?.url);
+};
+
+const performSearch = debounce(async (rawQuery: string) => {
+  const query = rawQuery.trim();
+  const requestId = ++searchRequestId;
+
+  if (query.length < 3) {
+    results.value = [];
+    isSearching.value = false;
+    return;
+  }
+
+  isSearching.value = true;
+  try {
+    const response = await api.get<{ data: ProductSearchResult[] }>('/products', {
+      params: {
+        'filters[name][$containsi]': query,
+        'fields[0]': 'name',
+        'fields[1]': 'slug',
+        'populate[images][fields][0]': 'url',
+        'pagination[limit]': 5,
+      }
+    });
+    if (requestId === searchRequestId) {
+      results.value = response.data.data ?? [];
+    }
+  } catch (error) {
+    console.error('Error en la búsqueda:', error);
+    if (requestId === searchRequestId) {
+      results.value = [];
+    }
+  } finally {
+    if (requestId === searchRequestId) {
+      isSearching.value = false;
+    }
+  }
+}, 350);
+
+watch(searchQuery, (newQuery) => {
+  performSearch(newQuery);
+});
+
+const goToProduct = (slug?: string) => {
+  if (!slug) return;
+  searchQuery.value = '';
+  results.value = [];
+  closeMobileNav();
+  router.push(`/tienda/${slug}`);
+};
 
 const isOnCartViewPage = computed(() => {
   const slug = route.params.slug;
@@ -117,6 +188,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  performSearch.cancel();
   document.removeEventListener('keydown', onDocumentKeydown);
   document.body.style.overflow = '';
 });
@@ -211,11 +283,31 @@ onUnmounted(() => {
               search
             </span>
             <input
+              v-model="searchQuery"
               class="bg-surface-container-highest border-none rounded-lg pl-9 lg:pl-10 pr-3 lg:pr-4 py-2 w-full md:w-44 lg:w-64 focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 text-sm font-body transition-all"
-              placeholder="Search collections..."
-              type="search"
+              placeholder="Buscar productos..."
+              type="text"
               autocomplete="off"
             />
+            <ul
+              v-if="results.length > 0"
+              class="absolute top-full left-0 w-full bg-white shadow-lg border mt-1 z-50"
+            >
+              <li
+                v-for="product in results"
+                :key="product.id"
+                class="p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
+                @click="goToProduct(product.slug)"
+              >
+                <img
+                  v-if="productImageUrl(product)"
+                  :src="productImageUrl(product)"
+                  :alt="product.name"
+                  class="w-10 h-10 object-cover"
+                />
+                <span>{{ product.name }}</span>
+              </li>
+            </ul>
           </div>
 
           <div class="flex items-center gap-1 sm:gap-2 md:gap-4">
@@ -275,11 +367,31 @@ onUnmounted(() => {
             search
           </span>
           <input
+            v-model="searchQuery"
             class="bg-surface-container-highest border-none rounded-lg pl-10 pr-4 py-2.5 w-full focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 text-sm font-body transition-all"
-            placeholder="Search collections..."
+            placeholder="Buscar productos..."
             type="search"
             autocomplete="off"
           />
+          <ul
+            v-if="results.length > 0"
+            class="absolute top-full left-0 w-full bg-white shadow-lg border mt-1 z-50"
+          >
+            <li
+              v-for="product in results"
+              :key="product.id"
+              class="p-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
+              @click="goToProduct(product.slug)"
+            >
+              <img
+                v-if="productImageUrl(product)"
+                :src="productImageUrl(product)"
+                :alt="product.name"
+                class="w-10 h-10 object-cover"
+              />
+              <span>{{ product.name }}</span>
+            </li>
+          </ul>
         </div>
 
         <nav v-if="hasNavLinks" class="flex flex-col" aria-label="Navegación principal">
