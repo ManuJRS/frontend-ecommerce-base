@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import type { StoreViewBlock } from '../models';
-import { useStoreViewStore } from '../stores/storeView.store';
 import { useCartConfigStore } from '@/features/cart/stores/cartConfig.store';
 
 export interface StoreFilterCategory {
   id: number;
   name?: string;
+  slug?: string;
   documentId?: string;
 }
 
@@ -25,7 +26,10 @@ function normalizeCategoriesSelection(raw: unknown): StoreFilterCategory[] {
           (item.name as string) ??
           (attrs?.name as string | undefined) ??
           (attrs?.title as string | undefined);
-        return { id, name, documentId: item.documentId as string | undefined };
+        const slug =
+          (item.slug as string | undefined) ??
+          (attrs?.slug as string | undefined);
+        return { id, name, slug, documentId: item.documentId as string | undefined };
       })
       .filter((c) => Number.isFinite(c.id));
   }
@@ -67,7 +71,8 @@ const emit = defineEmits<{
   priceRangeChange: [range: { min: number; max: number }];
 }>();
 
-const store = useStoreViewStore();
+const route = useRoute();
+const router = useRouter();
 
 const availabilityOnly = ref(false);
 
@@ -97,52 +102,107 @@ watch([parsedMin, parsedMax], () => {
   );
 });
 
-watch(
-  selectedPriceRange,
-  (range) => {
-    emit('priceRangeChange', { ...range });
-  },
-  { immediate: true }
-);
+function queryStringValue(raw: unknown): string {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return typeof value === 'string' ? value : '';
+}
 
 const categoryList = computed(() =>
   normalizeCategoriesSelection(props.block.categories_selection)
 );
 
-const selectedCategoryIds = ref<Record<number, boolean>>({});
+const activeCategorySlug = ref('');
+
+function isCategoryActive(category: StoreFilterCategory): boolean {
+  return Boolean(category.slug && category.slug === activeCategorySlug.value);
+}
+
+function clearCategoryFilter() {
+  activeCategorySlug.value = '';
+}
+
+function toggleCategory(category: StoreFilterCategory) {
+  const slug = category.slug?.trim();
+  if (!slug) return;
+
+  if (slug === activeCategorySlug.value) {
+    clearCategoryFilter();
+    return;
+  }
+
+  activeCategorySlug.value = slug;
+}
 
 watch(
-  categoryList,
-  (list) => {
-    const next: Record<number, boolean> = {};
-    for (const c of list) {
-      next[c.id] = selectedCategoryIds.value[c.id] ?? false;
+  () => route.query.category,
+  (raw) => {
+    activeCategorySlug.value = queryStringValue(raw);
+  },
+  { immediate: true }
+);
+
+watch(
+  () => route.query.maxPrice,
+  (raw) => {
+    const value = queryStringValue(raw);
+    if (!value) {
+      selectedMaxPrice.value = parsedMax.value;
+      return;
     }
-    selectedCategoryIds.value = next;
+
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      selectedMaxPrice.value = Math.min(Math.max(parsed, parsedMin.value), parsedMax.value);
+    }
+  },
+  { immediate: true }
+);
+
+watch(
+  () => route.query.stock,
+  (raw) => {
+    const value = queryStringValue(raw);
+    availabilityOnly.value =
+      ['true', '1', 'yes'].includes(value.toLowerCase());
   },
   { immediate: true }
 );
 
 function handleApplyFilters() {
-  const categoryIds = props.block.categories
-    ? categoryList.value.filter((c) => selectedCategoryIds.value[c.id]).map((c) => c.id)
-    : [];
-
   const priceRange = props.block.priceRange
     ? { min: selectedPriceRange.value.min, max: selectedPriceRange.value.max }
     : null;
 
-  store.applyProductFilters({
-    priceRange,
-    categoryIds,
-    availabilityOnly: props.block.availability ? availabilityOnly.value : false,
-  });
+  const query = { ...route.query };
+
+  if (priceRange) {
+    query.minPrice = String(priceRange.min);
+    query.maxPrice = String(priceRange.max);
+  } else {
+    delete query.minPrice;
+    delete query.maxPrice;
+  }
+
+  if (props.block.categories && activeCategorySlug.value) {
+    query.category = activeCategorySlug.value;
+  } else {
+    delete query.category;
+  }
+
+  if (props.block.availability && availabilityOnly.value) {
+    query.stock = 'true';
+  } else {
+    delete query.stock;
+  }
+
+  void router.push({ query });
+  emit('priceRangeChange', priceRange ?? { min: parsedMin.value, max: parsedMax.value });
 
   emit('applyFilters', {
     minPrice: priceRange?.min ?? parsedMin.value,
     maxPrice: priceRange?.max ?? parsedMax.value,
     priceRange: priceRange ?? { min: parsedMin.value, max: parsedMax.value },
-    categoryIds,
+    categoryIds: [],
     availabilityOnly: props.block.availability ? availabilityOnly.value : false,
   });
 }
@@ -197,18 +257,45 @@ defineExpose({
           <span class="font-manrope text-xs uppercase tracking-widest">{{ block.categoryTitle || 'Categories' }}</span>
         </div>
         <div class="flex flex-col gap-2 px-7">
-          <label
+          <button
+            type="button"
+            class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-left text-[11px] transition-colors hover:text-primary"
+            :class="
+              !activeCategorySlug
+                ? 'bg-primary/10 font-bold text-primary'
+                : 'text-on-surface-variant'
+            "
+            :aria-pressed="!activeCategorySlug"
+            @click="clearCategoryFilter"
+          >
+            <span
+              class="h-2 w-2 rounded-full border border-current"
+              :class="!activeCategorySlug ? 'bg-current' : ''"
+              aria-hidden="true"
+            />
+            Todo
+          </button>
+          <button
             v-for="cat in categoryList"
             :key="cat.id"
-            class="flex cursor-pointer items-center gap-2 text-[11px] text-on-surface-variant transition-colors hover:text-primary"
+            type="button"
+            class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-left text-[11px] transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+            :class="
+              isCategoryActive(cat)
+                ? 'bg-primary/10 font-bold text-primary'
+                : 'text-on-surface-variant'
+            "
+            :disabled="!cat.slug"
+            :aria-pressed="isCategoryActive(cat)"
+            @click="toggleCategory(cat)"
           >
-            <input
-              v-model="selectedCategoryIds[cat.id]"
-              class="hover:cursor-pointer rounded-sm border-outline-variant text-primary focus:ring-0"
-              type="checkbox"
+            <span
+              class="h-2 w-2 rounded-full border border-current"
+              :class="isCategoryActive(cat) ? 'bg-current' : ''"
+              aria-hidden="true"
             />
             {{ cat.name || 'Sin nombre' }}
-          </label>
+          </button>
         </div>
       </div>
 
