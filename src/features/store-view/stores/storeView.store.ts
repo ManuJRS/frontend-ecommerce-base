@@ -7,6 +7,7 @@ import { StoreViewService } from '../services/storeView.service';
 export interface AppliedProductFilters {
   priceRange: { min: number; max: number } | null;
   categoryIds: number[];
+  categorySlug: string | null;
   availabilityOnly: boolean;
 }
 
@@ -25,7 +26,6 @@ export const useStoreViewStore = defineStore('storeView', () => {
       const pageData = await StoreViewService.getStoreViewPage();
       if (pageData) {
         currentPage.value = pageData;
-        appliedProductFilters.value = null;
         if (pageData.slug) {
           const param = router.currentRoute.value.params.slug;
           const currentSlug =
@@ -34,6 +34,7 @@ export const useStoreViewStore = defineStore('storeView', () => {
             await router.replace({
               name: 'DynamicStoreView',
               params: { slug: pageData.slug },
+              query: router.currentRoute.value.query,
             });
           }
         }

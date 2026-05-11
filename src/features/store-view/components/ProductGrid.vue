@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import { api } from '@/core/api';
 import qs from 'qs';
@@ -151,10 +151,7 @@ function productMatchesFilters(p: any, f: AppliedProductFilters): boolean {
     if (price < f.priceRange.min || price > f.priceRange.max) return false;
   }
 
-  if (f.categoryIds.length > 0) {
-    const ids = (p.categories || []).map((c: { id: number }) => c.id);
-    if (!f.categoryIds.some((cid) => ids.includes(cid))) return false;
-  }
+  if (f.categorySlug && !productMatchesCategorySlug(p, f.categorySlug)) return false;
 
   if (f.availabilityOnly) {
     if (p.inStock === false) return false;
@@ -163,6 +160,15 @@ function productMatchesFilters(p: any, f: AppliedProductFilters): boolean {
   }
 
   return true;
+}
+
+function productMatchesCategorySlug(product: any, slug: string): boolean {
+  if (!slug) return true;
+  const categories = Array.isArray(product?.categories) ? product.categories : [];
+  return categories.some((category: Record<string, unknown>) => {
+    const rawSlug = category.slug ?? (category.attributes as Record<string, unknown> | undefined)?.slug;
+    return rawSlug === slug;
+  });
 }
 
 function sortList(list: any[], sortBy: string): any[] {
@@ -250,6 +256,60 @@ function isOutOfStock(product: any): boolean {
   return productStockNumber(product) === 0;
 }
 
+async function fetchAllProducts() {
+  isLoadingProducts.value = true;
+  try {
+    const filters: Record<string, unknown> = {};
+    const appliedFilters = store.appliedProductFilters;
+
+    if (appliedFilters?.categorySlug) {
+      filters.categories = {
+        slug: { $eq: appliedFilters.categorySlug },
+      };
+    }
+
+    if (appliedFilters?.priceRange) {
+      filters.price = {
+        $gte: appliedFilters.priceRange.min,
+        $lte: appliedFilters.priceRange.max,
+      };
+    }
+
+    if (appliedFilters?.availabilityOnly) {
+      filters.stock = { $gt: 0 };
+    }
+
+    const queryObj: any = {
+      populate: {
+        images: { populate: '*' },
+        categories: { populate: '*' },
+        variants: {
+          populate: {
+            attribute: true,
+            images: true
+          }
+        }
+      },
+      pagination: { limit: props.block.itemsLimit || 12 },
+      sort: ['createdAt:desc'],
+    };
+
+    if (Object.keys(filters).length > 0) {
+      queryObj.filters = filters;
+    }
+
+    const query = qs.stringify(queryObj, { encodeValuesOnly: true });
+    const response = await api.get(`/products?${query}`);
+    rawProducts.value = response.data.data || [];
+    captureBaselinesForList(rawProducts.value);
+  } catch (error) {
+    console.error('Error obteniendo todos los productos:', error);
+    rawProducts.value = [];
+  } finally {
+    isLoadingProducts.value = false;
+  }
+}
+
 onMounted(async () => {
   await cartConfig.fetchFullCartConfig();
   if (props.block.dataSource === 'manual_selection') {
@@ -264,35 +324,18 @@ onMounted(async () => {
       console.warn('La categoría no tiene productos asignados.');
       rawProducts.value = [];
     }
-  } else if (props.block.dataSource === 'all_products') {
-    isLoadingProducts.value = true;
-    try {
-      const queryObj: any = {
-        populate: {
-          images: { populate: '*' },
-          categories: { populate: '*' },
-          variants: {
-            populate: {
-              attribute: true,
-              images: true
-            }
-          }
-        },
-        pagination: { limit: props.block.itemsLimit || 12 },
-        sort: ['createdAt:desc'],
-      };
-
-      const query = qs.stringify(queryObj, { encodeValuesOnly: true });
-      const response = await api.get(`/products?${query}`);
-      rawProducts.value = response.data.data || [];
-      captureBaselinesForList(rawProducts.value);
-    } catch (error) {
-      console.error('Error obteniendo todos los productos:', error);
-    } finally {
-      isLoadingProducts.value = false;
-    }
   }
 });
+
+watch(
+  () => store.appliedProductFilters,
+  () => {
+    if (props.block.dataSource === 'all_products') {
+      void fetchAllProducts();
+    }
+  },
+  { deep: true, immediate: true }
+);
 
 /** Nombre solo de la variante (sin prefijo del producto padre). */
 function variantOnlyTitle(variant: Record<string, unknown> | null | undefined): string {
