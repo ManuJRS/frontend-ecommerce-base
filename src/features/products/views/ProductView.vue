@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { useProduct } from '../composables/useProduct';
 import { useCartStore } from '@/features/cart/stores/cart.store';
 import { useFavoritesStore } from '@/features/favorites/store/favorites.store';
@@ -25,6 +25,7 @@ const {
 const cartStore = useCartStore();
 const favoritesStore = useFavoritesStore();
 const route = useRoute();
+const router = useRouter();
 
 const activeImageIndex = ref(0);
 const selectedAttributes = reactive<Record<string, string>>({});
@@ -382,6 +383,72 @@ function handleFavoriteClick(p: StrapiProduct) {
 function formatMoney(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+const absoluteProductUrl = computed(() => {
+  const raw = route.params.slug;
+  const slug =
+    typeof raw === 'string'
+      ? raw.trim()
+      : Array.isArray(raw)
+        ? String(raw[0] ?? '').trim()
+        : '';
+  if (!slug) return '';
+  const variantRaw = activeVariant.value?.documentId;
+  const variant =
+    typeof variantRaw === 'string'
+      ? variantRaw.trim()
+      : variantRaw != null
+        ? String(variantRaw).trim()
+        : '';
+  const resolved = router.resolve(
+    variant !== ''
+      ? { name: 'Product', params: { slug }, query: { variant } }
+      : { name: 'Product', params: { slug } }
+  );
+  const { href } = resolved;
+  if (typeof window === 'undefined') return href;
+  return new URL(href, window.location.origin).href;
+});
+
+const linkJustCopied = ref(false);
+let linkCopiedResetId: ReturnType<typeof setTimeout> | null = null;
+
+async function shareProduct(): Promise<void> {
+  const url = absoluteProductUrl.value;
+  if (!url) return;
+  const p = product.value;
+  const title = p?.name?.trim() || 'Producto';
+  const text = p?.name ? `Échale un vistazo: ${p.name}` : 'Échale un vistazo a este producto';
+
+  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    try {
+      await navigator.share({ title, text, url });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      console.error('No se pudo compartir el producto:', err);
+      await copyProductLink();
+    }
+    return;
+  }
+
+  await copyProductLink();
+}
+
+async function copyProductLink(): Promise<void> {
+  const url = absoluteProductUrl.value;
+  if (!url) return;
+  try {
+    await navigator.clipboard.writeText(url);
+    if (linkCopiedResetId != null) clearTimeout(linkCopiedResetId);
+    linkJustCopied.value = true;
+    linkCopiedResetId = setTimeout(() => {
+      linkJustCopied.value = false;
+      linkCopiedResetId = null;
+    }, 2000);
+  } catch (err) {
+    console.error('No se pudo copiar el enlace del producto:', err);
+  }
+}
 </script>
 
 <template>
@@ -611,7 +678,27 @@ function formatMoney(n: number): string {
                 >
               </button>
             </div>
-
+            <div class="flex gap-4 items-center">
+            <span class="text-sm font-medium text-on-surface-variant">Compartir producto</span>
+            <div class="flex gap-2">
+            <button
+              type="button"
+              class="w-10 h-10 rounded-full hover:cursor-pointer border border-outline-variant flex items-center justify-center hover:bg-primary-fixed transition-colors text-on-surface-variant hover:text-primary"
+              aria-label="Compartir producto"
+              @click="shareProduct"
+            >
+            <span class="material-symbols-outlined text-lg">share</span>
+            </button>
+            <button
+              type="button"
+              class="w-10 h-10 rounded-full hover:cursor-pointer border border-outline-variant flex items-center justify-center hover:bg-primary-fixed transition-colors text-on-surface-variant hover:text-primary"
+              :aria-label="linkJustCopied ? 'Enlace copiado' : 'Copiar enlace del producto'"
+              @click="copyProductLink"
+            >
+            <span class="material-symbols-outlined text-lg">{{ linkJustCopied ? 'check' : 'link' }}</span>
+            </button>
+            </div>
+            </div>
             <div class="pt-12 space-y-6 max-w-md">
               <div class="border-t border-outline-variant pt-6">
                 <div class="flex justify-between items-center w-full">
